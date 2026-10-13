@@ -77,16 +77,7 @@ CREATE TABLE `applicants` (
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Applicant profiles linked to user accounts';
 
---
--- Dumping data for table `applicants`
---
 
-INSERT INTO `applicants` (`applicant_id`, `user_id`, `applicant_type`, `organization_name`, `address`, `valid_id_type`, `valid_id_number`, `tin_number`, `created_at`, `updated_at`) VALUES
-(1, 6, 'Farmer', 'Magsasaka Multi-Purpose Cooperative', 'Barangay San Isidro, Municipality District', 'Driver\'s License', 'N02-14-123456', '123-456-789-000', '2026-10-13 13:34:27', '2026-10-13 13:34:27'),
-(2, 7, 'Contractor', 'MV Horizon Builders & Construction Corp.', 'Zone 4, Poblacion Highway', 'PRC License / Contractor Permit', 'PCAB-88219-L', '987-654-321-000', '2026-10-13 13:34:27', '2026-10-13 13:34:27'),
-(3, 8, 'Individual', NULL, 'Purok 2, Barangay Santa Clara', 'Philippine National ID', '1029-3847-5610', NULL, '2026-10-13 13:34:27', '2026-10-13 13:34:27');
-
--- --------------------------------------------------------
 
 --
 -- Table structure for table `audit_logs`
@@ -103,19 +94,8 @@ CREATE TABLE `audit_logs` (
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Audit trail of system activities and security events';
 
---
--- Dumping data for table `audit_logs`
---
 
-INSERT INTO `audit_logs` (`audit_id`, `user_id`, `action`, `table_name`, `record_id`, `details`, `ip_address`, `created_at`) VALUES
-(1, 1, 'LOGIN', 'users', 1, 'Administrator logged in to system dashboard', '192.168.1.10', '2026-10-13 13:34:27'),
-(2, 2, 'APPROVE', 'rental_requests', 1, 'Approved rental request #1 for Juan Dela Cruz', '192.168.1.15', '2026-10-13 13:34:27'),
-(3, 2, 'APPROVE', 'rental_requests', 2, 'Approved rental request #2 for MV Horizon Builders', '192.168.1.15', '2026-10-13 13:34:27'),
-(4, 3, 'CREATE', 'payments', 1, 'Recorded Official Receipt OR-2026-1001 for amount PHP 2,000.00', '192.168.1.22', '2026-10-13 13:34:27'),
-(5, 2, 'CREATE', 'equipment_assignments', 1, 'Dispatched Backhoe Loader BH-001 to operator Danilo Cruz', '192.168.1.15', '2026-10-13 13:34:27'),
-(6, 4, 'CREATE', 'utilization_logs', 1, 'Operator logged 6.5 hours of excavator work and 32.5L fuel consumed', '192.168.1.45', '2026-10-13 13:34:27');
 
--- --------------------------------------------------------
 
 --
 -- Table structure for table `equipment`
@@ -140,17 +120,6 @@ CREATE TABLE `equipment` (
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Master inventory table for government-owned machinery';
 
---
--- Dumping data for table `equipment`
---
-
-INSERT INTO `equipment` (`equipment_id`, `category_id`, `equipment_code`, `equipment_name`, `brand`, `model`, `plate_number`, `serial_number`, `acquisition_date`, `acquisition_cost`, `condition_status`, `availability_status`, `current_location`, `photo_url`, `created_at`, `updated_at`) VALUES
-(1, 2, 'DT-001', '10-Wheeler Heavy Dump Truck', 'Isuzu', 'Giga CXZ', 'SAB-1024', 'ISZ-9938210', '2021-03-15', 3800000.00, 'Good', 'Available', 'LGU Motorpool Bay 1', 'uploads/equipment/dt-001.jpg', '2026-10-13 13:34:27', '2026-10-13 13:34:27'),
-(2, 2, 'DT-002', '6-Wheeler Mini Dump Truck', 'Hino', '500 Series', 'SAB-1025', 'HIN-4482019', '2022-06-10', 2400000.00, 'Good', 'Available', 'LGU Motorpool Bay 2', 'uploads/equipment/dt-002.jpg', '2026-10-13 13:34:27', '2026-10-13 13:34:27'),
-(3, 1, 'EX-001', 'Hydraulic Crawler Excavator', 'Komatsu', 'PC200-8', 'N/A', 'KM-88201938', '2020-01-20', 5500000.00, 'Good', 'Reserved', 'LGU Central Depot', 'uploads/equipment/ex-001.jpg', '2026-10-13 13:34:27', '2026-10-13 13:34:27'),
-(4, 1, 'BH-001', '4WD Backhoe Loader', 'Caterpillar', '428F2', 'SAB-2041', 'CAT-428-11029', '2019-11-05', 4200000.00, 'Good', 'In Use', 'Brgy. San Roque Project Site', 'uploads/equipment/bh-001.jpg', '2026-10-13 13:34:27', '2026-10-13 13:34:27'),
-(5, 3, 'TR-001', 'Agricultural 4WD Farm Tractor', 'Kubota', 'MU5502', 'N/A', 'KUB-5502-881', '2022-02-14', 1650000.00, 'Excellent', 'Available', 'Agri-Services Center', 'uploads/equipment/tr-001.jpg', '2026-10-13 13:34:27', '2026-10-13 13:34:27'),
-(6, 4, 'RR-001', 'Single Drum Vibratory Roller', 'Bomag', 'BW211D-40', 'N/A', 'BMG-992014', '2021-08-22', 3100000.00, 'Fair', 'Under Maintenance', 'LGU Repair Shop', 'uploads/equipment/rr-001.jpg', '2026-10-13 13:34:27', '2026-10-13 13:34:27');
 
 -- --------------------------------------------------------
 
@@ -175,14 +144,6 @@ CREATE TABLE `equipment_assignments` (
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Tracks equipment dispatch, operator assignment, and physical returns';
 
---
--- Dumping data for table `equipment_assignments`
---
-
-INSERT INTO `equipment_assignments` (`assignment_id`, `reservation_id`, `equipment_id`, `operator_id`, `released_at`, `released_by`, `condition_before`, `returned_at`, `received_by`, `condition_after`, `status`, `remarks`, `created_at`, `updated_at`) VALUES
-(1, 2, 4, 4, '2026-10-14 07:45:00', 2, 'Full tank diesel, hydraulic hoses inspected, tire pressure normal', NULL, NULL, NULL, 'Released', 'Deployed to Brgy. San Roque project site with Operator Danilo Cruz', '2026-10-13 13:34:27', '2026-10-13 13:34:27'),
-(2, 2, 1, 5, '2026-10-14 07:50:00', 2, 'Odometer 45,210 km, fuel 3/4 tank, headlights and hydraulics operational', NULL, NULL, NULL, 'Released', 'Hauling aggregates from riverbed quarry to bypass site', '2026-10-13 13:34:27', '2026-10-13 13:34:27');
-
 -- --------------------------------------------------------
 
 --
@@ -196,16 +157,6 @@ CREATE TABLE `equipment_categories` (
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Categories for grouping machinery';
 
---
--- Dumping data for table `equipment_categories`
---
-
-INSERT INTO `equipment_categories` (`category_id`, `category_name`, `description`, `created_at`) VALUES
-(1, 'Earthmoving & Excavation', 'Heavy earth-moving machinery like backhoes, excavators, and bulldozers', '2026-10-13 13:34:27'),
-(2, 'Hauling & Transport', 'Dump trucks, flatbed trucks, and utility transport vehicles', '2026-10-13 13:34:27'),
-(3, 'Agricultural Machinery', 'Farm tractors, harvesters, rotavators, and irrigation pumps', '2026-10-13 13:34:27'),
-(4, 'Road Work & Compaction', 'Road rollers, compactors, graders, and asphalt pavers', '2026-10-13 13:34:27'),
-(5, 'Power & Construction Utilities', 'Mobile generators, concrete mixers, and air compressors', '2026-10-13 13:34:27');
 
 -- --------------------------------------------------------
 
@@ -225,20 +176,6 @@ CREATE TABLE `equipment_rates` (
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Rental rates and historical pricing per equipment';
 
---
--- Dumping data for table `equipment_rates`
---
-
-INSERT INTO `equipment_rates` (`rate_id`, `equipment_id`, `rate_amount`, `rate_unit`, `effective_from`, `effective_to`, `is_active`, `notes`, `created_at`) VALUES
-(1, 1, 1200.00, 'Hour', '2024-01-01', NULL, 1, 'Approved municipal hourly rate for 10-wheeler dump truck', '2026-10-13 13:34:27'),
-(2, 1, 8500.00, 'Day', '2024-01-01', NULL, 1, 'Standard 8-hour daily rental rate', '2026-10-13 13:34:27'),
-(3, 2, 800.00, 'Hour', '2024-01-01', NULL, 1, 'Standard hourly rate for 6-wheeler dump truck', '2026-10-13 13:34:27'),
-(4, 2, 5500.00, 'Day', '2024-01-01', NULL, 1, 'Standard daily rate for 6-wheeler dump truck', '2026-10-13 13:34:27'),
-(5, 3, 1800.00, 'Hour', '2024-01-01', NULL, 1, 'Standard hourly rental for excavator', '2026-10-13 13:34:27'),
-(6, 3, 13000.00, 'Day', '2024-01-01', NULL, 1, 'Standard daily rental for excavator', '2026-10-13 13:34:27'),
-(7, 4, 1500.00, 'Hour', '2024-01-01', NULL, 1, 'Standard hourly rate for backhoe loader', '2026-10-13 13:34:27'),
-(8, 5, 500.00, 'Hour', '2024-01-01', NULL, 1, 'Subsidized farmer rate for agricultural tractor', '2026-10-13 13:34:27'),
-(9, 5, 3500.00, 'Day', '2024-01-01', NULL, 1, 'Daily rate for agricultural tractor', '2026-10-13 13:34:27');
 
 -- --------------------------------------------------------
 
@@ -261,14 +198,6 @@ CREATE TABLE `maintenance_records` (
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Preventive maintenance, inspections, and repair history';
 
---
--- Dumping data for table `maintenance_records`
---
-
-INSERT INTO `maintenance_records` (`maintenance_id`, `equipment_id`, `maintenance_type`, `problem_reported`, `description`, `technician_name`, `cost`, `scheduled_date`, `completed_date`, `status`, `created_at`, `updated_at`) VALUES
-(1, 6, 'Preventive', 'Routine 500-hour preventive servicing due', 'Oil filter replacement, hydraulic oil top-up, drum vibration belt inspection', 'Engr. Antonio Flores (Heavy Mech Services)', 8500.00, '2026-10-12', NULL, 'In Progress', '2026-10-13 13:34:27', '2026-10-13 13:34:27'),
-(2, 4, 'Inspection', 'Periodic pre-deployment inspection', 'Completed 40-point safety and fluid check before assignment', 'Danilo Cruz', 0.00, '2026-10-13', '2026-10-13', 'Completed', '2026-10-13 13:34:27', '2026-10-13 13:34:27'),
-(3, 1, 'Repair', 'Tailgate hydraulic cylinder slow retraction', 'Replaced worn rubber seal and bled hydraulic cylinder', 'Manuel Reyes', 2400.00, '2026-09-28', '2026-09-29', 'Completed', '2026-10-13 13:34:27', '2026-10-13 13:34:27');
 
 -- --------------------------------------------------------
 
@@ -286,17 +215,7 @@ CREATE TABLE `notifications` (
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='In-system user notifications and alerts';
 
---
--- Dumping data for table `notifications`
---
 
-INSERT INTO `notifications` (`notification_id`, `user_id`, `title`, `message`, `is_read`, `read_at`, `created_at`) VALUES
-(1, 6, 'Rental Application Approved', 'Your application (Req #1) for Agricultural Tractor TR-001 has been approved for Oct 15-17, 2026.', 1, '2026-10-13 10:00:00', '2026-10-13 13:34:27'),
-(2, 7, 'Equipment Deployed', 'Backhoe Loader BH-001 and Dump Truck DT-001 have been deployed to your project location.', 1, '2026-10-14 08:00:00', '2026-10-13 13:34:27'),
-(3, 8, 'Application Received', 'Your rental request #3 has been submitted and is currently pending review by the Equipment Officer.', 0, NULL, '2026-10-13 13:34:27'),
-(4, 2, 'Maintenance Alert', 'Single Drum Vibratory Roller RR-001 is scheduled for preventive maintenance.', 0, NULL, '2026-10-13 13:34:27');
-
--- --------------------------------------------------------
 
 --
 -- Table structure for table `payments`
@@ -316,15 +235,6 @@ CREATE TABLE `payments` (
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Financial records for rental fees, deposits, and refunds';
 
---
--- Dumping data for table `payments`
---
-
-INSERT INTO `payments` (`payment_id`, `request_id`, `amount`, `payment_type`, `payment_method`, `reference_or_no`, `payment_status`, `payment_date`, `recorded_by`, `remarks`, `created_at`) VALUES
-(1, 1, 2000.00, 'Deposit', 'Cash', 'OR-2026-1001', 'Paid', '2026-10-13 11:00:00', 3, 'Security deposit for tractor rental', '2026-10-13 13:34:27'),
-(2, 1, 5000.00, 'Rental Fee', 'Cash', 'OR-2026-1002', 'Paid', '2026-10-13 11:05:00', 3, 'Full subsidized rental payment for 2-day tractor rental', '2026-10-13 13:34:27'),
-(3, 2, 10000.00, 'Deposit', 'Bank Transfer', 'OR-2026-1003', 'Paid', '2026-10-13 14:20:00', 3, 'Contractor initial security deposit (Ref: LBP-982138)', '2026-10-13 13:34:27'),
-(4, 2, 25000.00, 'Rental Fee', 'Check', 'OR-2026-1004', 'Paid', '2026-10-13 14:25:00', 3, 'Partial advance payment for backhoe and dump truck rental', '2026-10-13 13:34:27');
 
 -- --------------------------------------------------------
 
@@ -348,16 +258,7 @@ CREATE TABLE `rental_requests` (
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Master table for equipment rental applications';
 
---
--- Dumping data for table `rental_requests`
---
-
-INSERT INTO `rental_requests` (`request_id`, `applicant_id`, `purpose`, `project_location`, `requested_start`, `requested_end`, `status`, `reviewed_by`, `reviewed_at`, `rejection_reason`, `review_remarks`, `created_at`, `updated_at`) VALUES
-(1, 1, 'Land preparation and plowing for communal cornfield before rainy season', 'Sitio Mabuhay, Barangay San Isidro', '2026-10-15 08:00:00', '2026-10-17 17:00:00', 'Approved', 2, '2026-10-13 09:30:00', NULL, 'Approved subject to LGU operator availability and farmer subsidy rate', '2026-10-13 13:34:27', '2026-10-13 13:34:27'),
-(2, 2, 'Drainage excavation and soil hauling for municipal commercial access road', 'Barangay San Roque Bypass Road', '2026-10-14 08:00:00', '2026-10-16 17:00:00', 'Approved', 2, '2026-10-13 10:15:00', NULL, 'All contractor clearance requirements verified and approved', '2026-10-13 13:34:27', '2026-10-13 13:34:27'),
-(3, 3, 'Gravel leveling and backyard foundation filling for residential workshop', 'Purok 2, Barangay Santa Clara', '2026-10-20 08:00:00', '2026-10-21 17:00:00', 'Pending', NULL, NULL, NULL, NULL, '2026-10-13 13:34:27', '2026-10-13 13:34:27');
-
--- --------------------------------------------------------
+-------------
 
 --
 -- Table structure for table `rental_request_items`
@@ -373,15 +274,6 @@ CREATE TABLE `rental_request_items` (
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Line items for requested equipment units';
 
---
--- Dumping data for table `rental_request_items`
---
-
-INSERT INTO `rental_request_items` (`request_item_id`, `request_id`, `equipment_id`, `quantity`, `estimated_rate`, `subtotal`, `created_at`) VALUES
-(1, 1, 5, 1, 3500.00, 7000.00, '2026-10-13 13:34:27'),
-(2, 2, 4, 1, 1500.00, 24000.00, '2026-10-13 13:34:27'),
-(3, 2, 1, 1, 8500.00, 17000.00, '2026-10-13 13:34:27'),
-(4, 3, 2, 1, 5500.00, 5500.00, '2026-10-13 13:34:27');
 
 -- --------------------------------------------------------
 
@@ -402,14 +294,6 @@ CREATE TABLE `reservations` (
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Approved equipment schedules and calendar reservations';
 
---
--- Dumping data for table `reservations`
---
-
-INSERT INTO `reservations` (`reservation_id`, `request_id`, `equipment_id`, `scheduled_start`, `scheduled_end`, `approved_by`, `status`, `remarks`, `created_at`, `updated_at`) VALUES
-(1, 1, 5, '2026-10-15 08:00:00', '2026-10-17 17:00:00', 2, 'Scheduled', 'Assigned tractor unit TR-001 with operator Rogelio Bautista', '2026-10-13 13:34:27', '2026-10-13 13:34:27'),
-(2, 2, 4, '2026-10-14 08:00:00', '2026-10-16 17:00:00', 2, 'In Progress', 'Assigned backhoe loader BH-001 deployed on-site', '2026-10-13 13:34:27', '2026-10-13 13:34:27'),
-(3, 2, 1, '2026-10-14 08:00:00', '2026-10-16 17:00:00', 2, 'In Progress', 'Assigned dump truck DT-001 deployed for hauling', '2026-10-13 13:34:27', '2026-10-13 13:34:27');
 
 -- --------------------------------------------------------
 
@@ -424,16 +308,7 @@ CREATE TABLE `roles` (
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Defines system roles and access levels';
 
---
--- Dumping data for table `roles`
---
 
-INSERT INTO `roles` (`role_id`, `role_name`, `description`, `created_at`) VALUES
-(1, 'Admin', 'System Administrator with full access to user accounts, configurations, and reports', '2026-10-13 13:34:27'),
-(2, 'Equipment Officer', 'Manages machinery inventory, reviews rental applications, and schedules reservations', '2026-10-13 13:34:27'),
-(3, 'Finance Officer', 'Manages billing, records official rental payments, deposits, and generates financial reports', '2026-10-13 13:34:27'),
-(4, 'Equipment Operator', 'Government equipment driver/operator who logs operational hours, fuel, and equipment condition', '2026-10-13 13:34:27'),
-(5, 'Applicant', 'Public applicant (farmer, contractor, resident) requesting equipment rentals', '2026-10-13 13:34:27');
 
 -- --------------------------------------------------------
 
@@ -454,19 +329,7 @@ CREATE TABLE `users` (
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Stores user login accounts and credentials';
 
---
--- Dumping data for table `users`
---
 
-INSERT INTO `users` (`user_id`, `role_id`, `first_name`, `last_name`, `email`, `password_hash`, `phone_number`, `account_status`, `created_at`, `updated_at`) VALUES
-(1, 1, 'Ricardo', 'Alcantara', 'admin@lgu.gov.ph', '$2y$10$AwBREkNrtXBOn2ewL6tZb.J7tAZ3UufSqMlpXEUYwWY5md95Hezzm', '09171234567', 'Active', '2026-10-13 13:34:27', '2026-10-13 13:34:27'),
-(2, 2, 'Eduardo', 'Santos', 'officer@lgu.gov.ph', '$2y$10$AwBREkNrtXBOn2ewL6tZb.J7tAZ3UufSqMlpXEUYwWY5md95Hezzm', '09181234567', 'Active', '2026-10-13 13:34:27', '2026-10-13 13:34:27'),
-(3, 3, 'Maria', 'Dizon', 'finance@lgu.gov.ph', '$2y$10$AwBREkNrtXBOn2ewL6tZb.J7tAZ3UufSqMlpXEUYwWY5md95Hezzm', '09191234567', 'Active', '2026-10-13 13:34:27', '2026-10-13 13:34:27'),
-(4, 4, 'Danilo', 'Cruz', 'operator.danilo@lgu.gov.ph', '$2y$10$AwBREkNrtXBOn2ewL6tZb.J7tAZ3UufSqMlpXEUYwWY5md95Hezzm', '09201234567', 'Active', '2026-10-13 13:34:27', '2026-10-13 13:34:27'),
-(5, 4, 'Rogelio', 'Bautista', 'operator.rogelio@lgu.gov.ph', '$2y$10$AwBREkNrtXBOn2ewL6tZb.J7tAZ3UufSqMlpXEUYwWY5md95Hezzm', '09211234567', 'Active', '2026-10-13 13:34:27', '2026-10-13 13:34:27'),
-(6, 5, 'Juan', 'Dela Cruz', 'juan.farmer@gmail.com', '$2y$10$AwBREkNrtXBOn2ewL6tZb.J7tAZ3UufSqMlpXEUYwWY5md95Hezzm', '09221234567', 'Active', '2026-10-13 13:34:27', '2026-10-13 13:34:27'),
-(7, 5, 'Mateo', 'Villanueva', 'mateo.contractor@buildcorp.ph', '$2y$10$AwBREkNrtXBOn2ewL6tZb.J7tAZ3UufSqMlpXEUYwWY5md95Hezzm', '09231234567', 'Active', '2026-10-13 13:34:27', '2026-10-13 13:34:27'),
-(8, 5, 'Elena', 'Soriano', 'elena.soriano@gmail.com', '$2y$10$AwBREkNrtXBOn2ewL6tZb.J7tAZ3UufSqMlpXEUYwWY5md95Hezzm', '09241234567', 'Active', '2026-10-13 13:34:27', '2026-10-13 13:34:27');
 
 -- --------------------------------------------------------
 
@@ -487,15 +350,7 @@ CREATE TABLE `utilization_logs` (
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Actual operational logs, engine hours, and fuel consumption';
 
---
--- Dumping data for table `utilization_logs`
---
 
-INSERT INTO `utilization_logs` (`utilization_id`, `assignment_id`, `usage_date`, `operating_hours`, `meter_start`, `meter_end`, `fuel_used_liters`, `work_description`, `logged_by`, `created_at`) VALUES
-(1, 1, '2026-10-14', 6.50, 1240.50, 1247.00, 32.50, 'Excavated 85 meters of roadside drainage ditch along Station 2+100', 4, '2026-10-13 13:34:27'),
-(2, 2, '2026-10-14', 7.00, 45210.00, 45325.00, 40.00, 'Hauling 6 trips of base gravel from quarry to road site (approx. 72 cu.m)', 5, '2026-10-13 13:34:27');
-
--- --------------------------------------------------------
 
 --
 -- Stand-in structure for view `vw_active_reservations`
