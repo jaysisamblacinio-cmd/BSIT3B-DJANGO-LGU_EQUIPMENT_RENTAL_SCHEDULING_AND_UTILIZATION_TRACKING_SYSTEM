@@ -1,0 +1,259 @@
+{% extends "theme/base.html" %}
+{% block content %}
+<div class="container-xl">
+
+  <div class="page-header d-print-none mb-3">
+    <div class="row align-items-center">
+      <div class="col">
+        <div class="page-pretitle text-uppercase fw-bold text-warning">Municipal Equipment Rental Office</div>
+        <h2 class="page-title"><i class="fas fa-file-signature me-2 text-warning"></i>Online Equipment Rental Application</h2>
+      </div>
+      <div class="col-auto ms-auto">
+        <a href="{% url 'rentals:my_requests' %}" class="btn btn-outline-secondary">
+          <i class="fas fa-list me-1"></i> My Applications
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <form method="POST" id="rentalApplyForm">
+    {% csrf_token %}
+    <div class="row row-cards mb-4">
+
+      <!-- LEFT COLUMN: APPLICATION FORM -->
+      <div class="col-lg-8">
+
+        <!-- STEP 1: SELECT MACHINERY -->
+        <div class="card shadow-sm mb-3">
+          <div class="card-header bg-surface-secondary">
+            <h3 class="card-title"><span class="badge bg-warning text-dark me-2">1</span>Select Machinery & Equipment</h3>
+          </div>
+          <div class="card-body">
+            <p class="text-muted small mb-3">Check the machinery you wish to request for your agricultural, construction, or community project.</p>
+
+            <div class="row g-2">
+              {% for eq in equipment_list %}
+              <div class="col-md-6">
+                <label class="form-selectgroup-item w-100">
+                  <input type="checkbox" name="equipment_ids" value="{{ eq.id }}" class="form-selectgroup-input eq-checkbox"
+                         data-code="{{ eq.equipment_code }}"
+                         data-name="{{ eq.equipment_name }}"
+                         data-rate="{{ eq.active_rate.rate_amount|default:'3500.00' }}"
+                         data-unit="{{ eq.active_rate.rate_unit|default:'Day' }}"
+                         {% if preselected_eq and preselected_eq.id == eq.id %}checked{% endif %}>
+                  <div class="form-selectgroup-label d-flex align-items-center p-3 text-start">
+                    <div class="me-3">
+                      <span class="avatar avatar-md bg-primary-lt text-primary rounded">
+                        <i class="fas fa-tractor"></i>
+                      </span>
+                    </div>
+                    <div class="flex-grow-1 min-w-0">
+                      <div class="fw-bold text-truncate">[{{ eq.equipment_code }}] {{ eq.equipment_name }}</div>
+                      <div class="text-muted small">{{ eq.category.category_name }}</div>
+                      <div class="text-success fw-bold small mt-1">
+                        ₱{{ eq.active_rate.rate_amount|default:'3500.00'|floatformat:2 }} / {{ eq.active_rate.rate_unit|default:'Day' }}
+                      </div>
+                    </div>
+                  </div>
+                </label>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+
+        <!-- STEP 2: RENTAL PERIOD & LOCATION -->
+        <div class="card shadow-sm mb-3">
+          <div class="card-header bg-surface-secondary">
+            <h3 class="card-title"><span class="badge bg-warning text-dark me-2">2</span>Schedule & Project Details</h3>
+          </div>
+          <div class="card-body">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label required">Requested Start Date & Time</label>
+                <input type="datetime-local" name="requested_start" id="requested_start" class="form-control" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label required">Requested End Date & Time</label>
+                <input type="datetime-local" name="requested_end" id="requested_end" class="form-control" required>
+              </div>
+              <div class="col-12">
+                <label class="form-label required">Project / Delivery Location</label>
+                <input type="text" name="project_location" class="form-control" placeholder="e.g. Sitio Mabuhay, Barangay San Isidro, Municipal Bypass Road" required>
+              </div>
+              <div class="col-12">
+                <label class="form-label required">Purpose of Equipment Rental</label>
+                <textarea name="purpose" class="form-control" rows="3" placeholder="Describe scope of work (e.g. agricultural land preparation, drainage excavation, road rehabilitation)" required></textarea>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- STEP 3: APPLICANT INFORMATION -->
+        <div class="card shadow-sm mb-3">
+          <div class="card-header bg-surface-secondary">
+            <h3 class="card-title"><span class="badge bg-warning text-dark me-2">3</span>Applicant Credentials & Requirements</h3>
+          </div>
+          <div class="card-body">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label required">Applicant Classification</label>
+                <select name="applicant_type" class="form-select" required>
+                  <option value="Farmer" {% if applicant_profile.applicant_type == 'Farmer' %}selected{% endif %}>Farmer / Agricultural Worker</option>
+                  <option value="Contractor" {% if applicant_profile.applicant_type == 'Contractor' %}selected{% endif %}>General Contractor / Builder</option>
+                  <option value="Cooperative" {% if applicant_profile.applicant_type == 'Cooperative' %}selected{% endif %}>Multi-Purpose Cooperative</option>
+                  <option value="Resident" {% if applicant_profile.applicant_type == 'Resident' %}selected{% endif %}>Resident / Citizen</option>
+                  <option value="Government Project" {% if applicant_profile.applicant_type == 'Government Project' %}selected{% endif %}>Barangay / LGU Project</option>
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Company / Cooperative / Farm Name</label>
+                <input type="text" name="organization_name" value="{{ applicant_profile.organization_name|default:'' }}" class="form-control" placeholder="Optional for individuals">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label required">Official Address</label>
+                <input type="text" name="address" value="{{ applicant_profile.address|default:'' }}" class="form-control" placeholder="Barangay, Municipality" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label required">Valid Government ID Type</label>
+                <select name="valid_id_type" class="form-select" required>
+                  <option value="Driver's License" {% if applicant_profile.valid_id_type == "Driver's License" %}selected{% endif %}>Driver's License (LTO)</option>
+                  <option value="Philippine National ID" {% if applicant_profile.valid_id_type == "Philippine National ID" %}selected{% endif %}>Philippine National ID (PhilSys)</option>
+                  <option value="PCAB License" {% if applicant_profile.valid_id_type == "PCAB License" %}selected{% endif %}>PCAB Contractor's License</option>
+                  <option value="Barangay Clearance" {% if applicant_profile.valid_id_type == "Barangay Clearance" %}selected{% endif %}>Barangay Certificate</option>
+                  <option value="Passport" {% if applicant_profile.valid_id_type == "Passport" %}selected{% endif %}>Philippine Passport</option>
+                  <option value="Voter's ID" {% if applicant_profile.valid_id_type == "Voter's ID" %}selected{% endif %}>Voter's ID / Certification</option>
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label required">ID Number / License #</label>
+                <input type="text" name="valid_id_number" value="{{ applicant_profile.valid_id_number|default:'' }}" class="form-control" placeholder="e.g. N02-14-123456" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Tax Identification Number (TIN)</label>
+                <input type="text" name="tin_number" value="{{ applicant_profile.tin_number|default:'' }}" class="form-control" placeholder="e.g. 123-456-789-000">
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- RIGHT COLUMN: SUMMARY & SUBMIT -->
+      <div class="col-lg-4">
+        <div class="card shadow-sm sticky-top" style="top: 20px;">
+          <div class="card-header bg-primary text-white">
+            <h3 class="card-title text-white mb-0"><i class="fas fa-calculator me-2"></i>Rental Cost Summary</h3>
+          </div>
+          <div class="card-body">
+            <div class="mb-3">
+              <label class="form-label text-muted small text-uppercase fw-bold">Selected Machinery</label>
+              <ul id="selectedEquipList" class="list-unstyled mb-0">
+                <li class="text-muted small fst-italic">No equipment selected yet.</li>
+              </ul>
+            </div>
+
+            <div class="mb-3 border-top pt-2">
+              <div class="d-flex justify-content-between small py-1">
+                <span class="text-muted">Estimated Duration:</span>
+                <span id="summaryDuration" class="fw-bold">1 Day</span>
+              </div>
+              <div class="d-flex justify-content-between small py-1">
+                <span class="text-muted">Subsidized Operator Fee:</span>
+                <span class="text-success fw-bold">Included</span>
+              </div>
+              <div class="d-flex justify-content-between small py-1 border-top mt-2 pt-2">
+                <span class="fs-4 fw-bold">Total Estimate:</span>
+                <span id="summaryTotal" class="fs-3 fw-bold text-primary">₱0.00</span>
+              </div>
+            </div>
+
+            <div class="alert alert-info py-2 small mb-3">
+              <i class="fas fa-circle-info me-1"></i> Note: Rates are computed according to official Municipal Ordinance. A security deposit is recorded upon approval.
+            </div>
+
+            <button type="submit" class="btn btn-warning text-dark w-100 fw-bold py-2 shadow-sm">
+              <i class="fas fa-paper-plane me-2"></i> Submit Application
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </form>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+  const checkboxes = document.querySelectorAll('.eq-checkbox');
+  const startInput = document.getElementById('requested_start');
+  const endInput = document.getElementById('requested_end');
+  const selectedList = document.getElementById('selectedEquipList');
+  const durationSpan = document.getElementById('summaryDuration');
+  const totalSpan = document.getElementById('summaryTotal');
+
+  // Set default dates: tomorrow to day after tomorrow
+  const now = new Date();
+  const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+  tomorrow.setHours(8, 0, 0, 0);
+  const endDefault = new Date(tomorrow.getTime() + 48 * 60 * 60 * 1000);
+  endDefault.setHours(17, 0, 0, 0);
+
+  function formatDateForInput(d) {
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+
+  if (!startInput.value) startInput.value = formatDateForInput(tomorrow);
+  if (!endInput.value) endInput.value = formatDateForInput(endDefault);
+
+  function calculateSummary() {
+    let days = 1;
+    if (startInput.value && endInput.value) {
+      const s = new Date(startInput.value);
+      const e = new Date(endInput.value);
+      if (e > s) {
+        const diffMs = e - s;
+        days = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+      }
+    }
+    durationSpan.textContent = days + (days === 1 ? ' Day' : ' Days');
+
+    let total = 0;
+    selectedList.innerHTML = '';
+    let count = 0;
+
+    checkboxes.forEach(cb => {
+      if (cb.checked) {
+        count++;
+        const code = cb.dataset.code;
+        const name = cb.dataset.name;
+        const rate = parseFloat(cb.dataset.rate || '0');
+        const subtotal = rate * days;
+        total += subtotal;
+
+        const li = document.createElement('li');
+        li.className = 'd-flex justify-content-between small py-1 border-bottom';
+        li.innerHTML = `<span><strong>${code}</strong> - ${name}</span><span class="fw-semibold">₱${subtotal.toLocaleString('en-US', {minimumFractionDigits: 2})}</span>`;
+        selectedList.appendChild(li);
+      }
+    });
+
+    if (count === 0) {
+      selectedList.innerHTML = '<li class="text-muted small fst-italic">No equipment selected yet.</li>';
+    }
+
+    totalSpan.textContent = '₱' + total.toLocaleString('en-US', {minimumFractionDigits: 2});
+  }
+
+  checkboxes.forEach(cb => cb.addEventListener('change', calculateSummary));
+  startInput.addEventListener('change', calculateSummary);
+  endInput.addEventListener('change', calculateSummary);
+
+  calculateSummary();
+})();
+</script>
+{% endblock %}

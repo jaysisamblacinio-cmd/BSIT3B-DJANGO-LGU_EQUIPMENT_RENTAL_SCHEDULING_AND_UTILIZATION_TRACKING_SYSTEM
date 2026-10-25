@@ -140,7 +140,8 @@ def logout_view(request):
 
 @login_required(login_url='login')
 def home(request):
-    return render(request, 'home.html')
+    from apps.rentals.views import dashboard_view
+    return dashboard_view(request)
 
 
 @require_http_methods(['GET', 'POST'])
@@ -158,6 +159,8 @@ def register_view(request):
         'email': request.POST.get('email', ''),
         'password': request.POST.get('password', ''),
         'confirm_password': request.POST.get('confirm_password', ''),
+        'applicant_type': request.POST.get('applicant_type', 'Individual'),
+        'organization_name': request.POST.get('organization_name', ''),
     }
 
     errors = _validate_registration_data(form_data)
@@ -171,5 +174,25 @@ def register_view(request):
         email=form_data['email'].strip(),
         password=form_data['password'],
     )
+
+    # Automatically initialize Applicant role and profile
+    try:
+        from django.contrib.auth.models import Group
+        from apps.rentals.models import Applicant
+        applicant_group, _ = Group.objects.get_or_create(name='Applicant')
+        user.groups.add(applicant_group)
+
+        Applicant.objects.create(
+            user=user,
+            applicant_type=form_data.get('applicant_type', 'Individual') or 'Individual',
+            organization_name=form_data.get('organization_name', '').strip(),
+            address='LGU Municipal Jurisdiction',
+            valid_id_type='Government ID',
+            valid_id_number='Pending Verification',
+        )
+    except Exception:
+        pass
+
     login(request, user)
+    messages.success(request, f"Welcome to LGU Equipment Rental System, {user.first_name or user.username}!")
     return redirect('dashboard')

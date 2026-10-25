@@ -1,0 +1,72 @@
+{% extends "theme/base.html" %}
+{% block content %}
+<div class="container-xl">
+
+  <div class="page-header d-print-none mb-3">
+    <div class="row align-items-center">
+      <div class="col">
+        <div class="page-pretitle text-uppercase fw-bold text-primary">Alerts & Messaging</div>
+        <h2 class="page-title"><i class="fas fa-bell me-2 text-warning"></i>In-System Notifications & Alerts</h2>
+      </div>
+    </div>
+  </div>
+
+  <div class="card shadow-sm mb-4">
+    <div class="list-group list-group-flush">
+      {% for n in notifications %}
+      <div class="list-group-item d-flex align-items-start justify-content-between p-3 {% if not n.is_read %}bg-warning-lt{% endif %}">
+        <div class="d-flex align-items-start gap-3">
+          <span class="avatar avatar-md rounded {% if not n.is_read %}bg-warning text-dark{% else %}bg-secondary-lt text-secondary{% endif %}">
+            <i class="fas fa-bell"></i>
+          </span>
+          <div>
+            <div class="d-flex align-items-center gap-2">
+              <h4 class="mb-0 fw-bold">{{ n.title }}</h4>
+              {% if not n.is_read %}
+              <span class="badge bg-warning text-dark">New</span>
+              {% endif %}
+            </div>
+            <p class="text-muted mb-1 mt-1">{{ n.message }}</p>
+            <div class="text-muted small"><i class="fas fa-clock me-1"></i>{{ n.created_at|date:"M j, Y - g:i A" }}</div>
+          </div>
+        </div>
+
+        {% if not n.is_read %}
+        <button type="button" class="btn btn-sm btn-outline-secondary mark-read-btn" data-id="{{ n.id }}">
+          <i class="fas fa-check me-1"></i> Mark as Read
+        </button>
+        {% endif %}
+      </div>
+      {% empty %}
+      <div class="text-center py-5 text-muted">
+        <i class="fas fa-bell-slash fa-3x mb-2 text-muted"></i>
+        <p class="fs-4">No notifications yet.</p>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.querySelectorAll('.mark-read-btn').forEach(btn => {
+  btn.addEventListener('click', function() {
+    const id = this.dataset.id;
+    const parent = this.closest('.list-group-item');
+    fetch('/rentals/notifications/' + id + '/read/', {
+      method: 'POST',
+      headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+    })
+    .then(r => r.json())
+    .then(d => {
+      if (d.status === 'read') {
+        parent.classList.remove('bg-warning-lt');
+        btn.remove();
+      }
+    });
+  });
+});
+</script>
+{% endblock %}

@@ -1,21 +1,24 @@
 <!--  BEGIN FOOTER  -->
-<footer class="footer footer-transparent dh-footer d-print-none">
+<footer class="footer footer-transparent dh-footer d-print-none mt-4">
   <div class="container-xl">
     <div class="row text-center align-items-center flex-row-reverse">
       <div class="col-lg-auto ms-lg-auto">
         <ul class="list-inline list-inline-dots mb-0">
           <li class="list-inline-item">
-            <a href="{% url 'dashboard' %}" class="link-secondary text-decoration-none">
-              <i class="fas fa-shield-halved me-1"></i> ProjectV3
-            </a>
+            <span class="badge bg-warning-lt text-dark fw-bold">
+              <i class="fas fa-truck-monster me-1"></i> LGU Equipment Rental System
+            </span>
+          </li>
+          <li class="list-inline-item">
+            <span class="text-muted small">Capstone Project</span>
           </li>
         </ul>
       </div>
       <div class="col-12 col-lg-auto mt-3 mt-lg-0">
         <ul class="list-inline list-inline-dots mb-0">
-          <li class="list-inline-item">
-            Copyright &copy; 2026
-            <a href="." class="link-secondary text-decoration-none">Azuelo Technology</a>. All rights reserved.
+          <li class="list-inline-item text-muted">
+            Copyright &copy; {% now 'Y' %}
+            <strong class="text-dark">Municipal Local Government Unit</strong>. All rights reserved.
           </li>
         </ul>
       </div>

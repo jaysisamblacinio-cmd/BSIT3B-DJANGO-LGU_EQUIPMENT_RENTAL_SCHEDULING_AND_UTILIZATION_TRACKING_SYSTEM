@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Rental Agreement - REQ #{{ req.id|stringformat:"04d" }}</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    @page { size: A4; margin: 15mm; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      font-size: 11pt;
+      line-height: 1.45;
+      color: #1e293b;
+      background: #f8fafc;
+      margin: 0;
+      padding: 20px;
+    }
+    .sheet {
+      max-width: 820px;
+      margin: 0 auto;
+      background: #ffffff;
+      padding: 35px 45px;
+      border: 1px solid #cbd5e1;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+    }
+    .header-table {
+      width: 100%;
+      border-bottom: 2px solid #0f172a;
+      padding-bottom: 15px;
+      margin-bottom: 20px;
+    }
+    .header-text {
+      text-align: center;
+      line-height: 1.25;
+    }
+    .doc-title {
+      font-size: 14pt;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: #0f172a;
+      margin-top: 8px;
+    }
+    h4 {
+      font-size: 11pt;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      border-bottom: 1px solid #e2e8f0;
+      padding-bottom: 4px;
+      margin-top: 18px;
+      margin-bottom: 8px;
+      color: #1e3a8a;
+    }
+    table.data-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 8px 0 14px 0;
+      font-size: 10pt;
+    }
+    table.data-table th, table.data-table td {
+      border: 1px solid #cbd5e1;
+      padding: 6px 10px;
+      text-align: left;
+    }
+    table.data-table th {
+      background-color: #f1f5f9;
+      font-weight: 700;
+    }
+    .terms-box {
+      font-size: 9pt;
+      color: #475569;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      padding: 10px 14px;
+      border-radius: 4px;
+      margin-bottom: 20px;
+    }
+    .signature-row {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 40px;
+      gap: 20px;
+    }
+    .sig-block {
+      flex: 1;
+      text-align: center;
+      font-size: 10pt;
+    }
+    .sig-line {
+      border-top: 1px solid #0f172a;
+      margin-top: 45px;
+      padding-top: 4px;
+      font-weight: 700;
+    }
+    .sig-role {
+      font-size: 8.5pt;
+      color: #64748b;
+    }
+    .print-btn-bar {
+      max-width: 820px;
+      margin: 0 auto 15px auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      padding: 8px 16px;
+      font-size: 10pt;
+      font-weight: 600;
+      border-radius: 4px;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    .btn-print { background: #0f172a; color: white; border: none; }
+    .btn-back { background: #e2e8f0; color: #1e293b; border: none; }
+    @media print {
+      body { background: white; padding: 0; }
+      .sheet { border: none; box-shadow: none; padding: 0; }
+      .print-btn-bar { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="print-btn-bar">
+    <a href="javascript:window.history.back()" class="btn btn-back">&larr; Back to System</a>
+    <button onclick="window.print()" class="btn btn-print"><i class="fas fa-print me-2"></i> Print Contract</button>
+  </div>
+
+  <div class="sheet">
+    <table class="header-table">
+      <tr>
+        <td style="width: 70px; text-align: center;">
+          <i class="fas fa-shield-halved" style="font-size: 42px; color: #1e3a8a;"></i>
+        </td>
+        <td class="header-text">
+          <div style="font-size: 10pt; font-weight: 600; text-transform: uppercase;">Republic of the Philippines</div>
+          <div style="font-size: 11pt; font-weight: 700;">PROVINCE OF ISABELA &bull; MUNICIPAL GOVERNMENT</div>
+          <div style="font-size: 9.5pt; color: #64748b;">Office of the Municipal Engineer & Motorpool Division</div>
+          <div class="doc-title">Government Machinery & Equipment Rental Agreement</div>
+          <div style="font-size: 9pt; color: #64748b;">Contract Ref No: LGU-EQ-REQ-{% filter stringformat:"04d" %}{{ req.id }}{% endfilter %} &bull; Date: {{ today|date:"F j, Y" }}</div>
+        </td>
+        <td style="width: 70px; text-align: center;">
+          <i class="fas fa-truck-monster" style="font-size: 42px; color: #f59e0b;"></i>
+        </td>
+      </tr>
+    </table>
+
+    <p style="text-align: justify; font-size: 10pt;">
+      This Agreement is entered into on <strong>{{ today|date:"F j, Y" }}</strong>, by and between the <strong>LOCAL GOVERNMENT UNIT (LGU)</strong>, represented herein by its authorized Municipal Equipment Officer, and the <strong>LESSEE/APPLICANT</strong> identified below, in accordance with Municipal Revenue and Equipment Rental Ordinance:
+    </p>
+
+    <h4>1. Lessee / Applicant Credentials</h4>
+    <table class="data-table">
+      <tr>
+        <th style="width: 25%;">Full Name:</th>
+        <td style="width: 35%; font-weight: 700;">{{ req.applicant.display_name }}</td>
+        <th style="width: 20%;">Applicant Type:</th>
+        <td style="width: 20%;">{{ req.applicant.applicant_type }}</td>
+      </tr>
+      <tr>
+        <th>Company / Org:</th>
+        <td>{{ req.applicant.organization_name|default:"Individual Citizen / Farmer" }}</td>
+        <th>TIN Number:</th>
+        <td>{{ req.applicant.tin_number|default:"N/A" }}</td>
+      </tr>
+      <tr>
+        <th>Official Address:</th>
+        <td>{{ req.applicant.address }}</td>
+        <th>Presented ID:</th>
+        <td>{{ req.applicant.valid_id_type }} ({{ req.applicant.valid_id_number }})</td>
+      </tr>
+    </table>
+
+    <h4>2. Rented Machinery & Rates Specification</h4>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Equipment Code</th>
+          <th>Description & Brand</th>
+          <th>Plate / Serial #</th>
+          <th>Rate / Unit</th>
+          <th>Duration</th>
+          <th>Estimated Subtotal</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in req.items.all %}
+        <tr>
+          <td><strong>{{ item.equipment.equipment_code }}</strong></td>
+          <td>{{ item.equipment.equipment_name }} ({{ item.equipment.brand }} {{ item.equipment.model }})</td>
+          <td>{{ item.equipment.plate_number|default:item.equipment.serial_number|default:"Official Unit" }}</td>
+          <td>₱{{ item.estimated_rate|floatformat:2 }}</td>
+          <td>{{ req.duration_days }} day(s)</td>
+          <td style="font-weight: 700;">₱{{ item.subtotal|floatformat:2 }}</td>
+        </tr>
+        {% endfor %}
+        <tr>
+          <td colspan="5" style="text-align: right; font-weight: 700;">Total Estimated Rental Assessment:</td>
+          <td style="font-weight: 800; color: #1e3a8a; font-size: 11pt;">₱{{ req.total_estimated_cost|floatformat:2 }}</td>
+        </tr>
+        <tr>
+          <td colspan="5" style="text-align: right; font-weight: 700;">Total Payments Recorded via Official Receipts:</td>
+          <td style="font-weight: 800; color: #16a34a;">₱{{ req.total_paid|floatformat:2 }}</td>
+        </tr>
+        <tr>
+          <td colspan="5" style="text-align: right; font-weight: 700;">Remaining Balance Due:</td>
+          <td style="font-weight: 800; color: #dc2626;">₱{{ req.balance_due|floatformat:2 }}</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h4>3. Deployment Location & Schedule</h4>
+    <table class="data-table">
+      <tr>
+        <th style="width: 25%;">Project Site Location:</th>
+        <td colspan="3" style="font-weight: 700;">{{ req.project_location }}</td>
+      </tr>
+      <tr>
+        <th>Deployment Period:</th>
+        <td colspan="3">
+          From <strong>{{ req.requested_start|date:"F j, Y g:i A" }}</strong> to <strong>{{ req.requested_end|date:"F j, Y g:i A" }}</strong>
+          ({{ req.duration_days }} operational day(s))
+        </td>
+      </tr>
+      <tr>
+        <th>Declared Scope of Work:</th>
+        <td colspan="3">{{ req.purpose }}</td>
+      </tr>
+    </table>
+
+    <h4>4. General Terms, Safety & Liability</h4>
+    <div class="terms-box">
+      <ol style="margin: 0; padding-left: 18px;">
+        <li>The machinery shall be operated only for the purpose and location stipulated in this Agreement.</li>
+        <li>The Lessee agrees to safeguard the machinery against negligence, misuse, and theft during the deployment.</li>
+        <li>Any damage caused by improper operation or unauthorized modification shall be assessed and billed to the Lessee under official municipal damage rates.</li>
+        <li>Fuel, lubricants, and daily maintenance checks shall comply with the Motorpool Operating Standards.</li>
+        <li>The LGU reserves the right to recall or inspect the equipment during emergencies or calamities.</li>
+      </ol>
+    </div>
+
+    <!-- SIGNATURE BLOCKS -->
+    <div class="signature-row">
+      <div class="sig-block">
+        <div>CONFORME / LESSEE:</div>
+        <div class="sig-line">{{ req.applicant.display_name }}</div>
+        <div class="sig-role">Authorized Representative / Applicant</div>
+      </div>
+
+      <div class="sig-block">
+        <div>INSPECTED & APPROVED BY:</div>
+        <div class="sig-line">{{ req.reviewed_by.get_full_name|default:req.reviewed_by.username|default:"Equipment Officer" }}</div>
+        <div class="sig-role">Municipal Equipment & Motorpool Officer</div>
+      </div>
+
+      <div class="sig-block">
+        <div>ATTESTED & CONFIRMED:</div>
+        <div class="sig-line">HON. MUNICIPAL MAYOR / ADM.</div>
+        <div class="sig-role">Local Government Unit</div>
+      </div>
+    </div>
+
+  </div>
+
+</body>
+</html>

@@ -1,0 +1,199 @@
+{% extends "theme/base.html" %}
+{% block content %}
+<div class="container-xl">
+
+  <div class="page-header d-print-none mb-3">
+    <div class="row align-items-center">
+      <div class="col">
+        <div class="page-pretitle text-uppercase fw-bold text-primary">Management Information System</div>
+        <h2 class="page-title"><i class="fas fa-chart-line me-2 text-primary"></i>Executive Reports & Utilization Analytics</h2>
+      </div>
+      <div class="col-auto ms-auto d-flex gap-2">
+        <button type="button" onclick="window.print();" class="btn btn-outline-secondary">
+          <i class="fas fa-print me-1"></i> Print Report
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- EXCEL EXPORT HUB -->
+  <div class="card shadow-sm mb-4 border-primary">
+    <div class="card-header bg-primary-lt">
+      <h3 class="card-title text-primary"><i class="fas fa-file-excel me-2 text-success fs-3"></i>Export Data to Spreadsheet (Excel .xlsx)</h3>
+    </div>
+    <div class="card-body">
+      <p class="text-muted small mb-3">Download generated Excel workbooks formatted for municipal auditing and LGU executive presentations.</p>
+      <div class="row g-3">
+        <div class="col-md-3">
+          <a href="{% url 'rentals:export_report_excel' 'transactions' %}" class="btn btn-outline-success w-100 py-3 d-flex flex-column align-items-center gap-1 shadow-sm">
+            <i class="fas fa-file-invoice fs-2"></i>
+            <span class="fw-bold">Rental Transactions</span>
+            <span class="small text-muted">Applications & statuses</span>
+          </a>
+        </div>
+        <div class="col-md-3">
+          <a href="{% url 'rentals:export_report_excel' 'utilization' %}" class="btn btn-outline-primary w-100 py-3 d-flex flex-column align-items-center gap-1 shadow-sm">
+            <i class="fas fa-gauge-high fs-2"></i>
+            <span class="fw-bold">Machinery Utilization</span>
+            <span class="small text-muted">Operating hours & fuel</span>
+          </a>
+        </div>
+        <div class="col-md-3">
+          <a href="{% url 'rentals:export_report_excel' 'revenue' %}" class="btn btn-outline-warning text-dark w-100 py-3 d-flex flex-column align-items-center gap-1 shadow-sm">
+            <i class="fas fa-coins fs-2 text-warning"></i>
+            <span class="fw-bold">Treasury Revenue</span>
+            <span class="small text-muted">Official receipts & fees</span>
+          </a>
+        </div>
+        <div class="col-md-3">
+          <a href="{% url 'rentals:export_report_excel' 'maintenance' %}" class="btn btn-outline-danger w-100 py-3 d-flex flex-column align-items-center gap-1 shadow-sm">
+            <i class="fas fa-screwdriver-wrench fs-2"></i>
+            <span class="fw-bold">Fleet Maintenance</span>
+            <span class="small text-muted">Repairs & servicing costs</span>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- KPI SUMMARY ROW -->
+  <div class="row row-cards mb-4">
+    <div class="col-sm-6 col-lg-3">
+      <div class="card shadow-sm p-3">
+        <div class="text-muted small text-uppercase fw-bold">Total Rental Requests</div>
+        <div class="h1 mb-1 fw-bold">{{ monthly_stats.total_requests }}</div>
+        <div class="text-success small"><i class="fas fa-check-circle me-1"></i>{{ monthly_stats.approved_requests }} Approved & Deployed</div>
+      </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+      <div class="card shadow-sm p-3">
+        <div class="text-muted small text-uppercase fw-bold">Total Treasury Revenue</div>
+        <div class="h2 mb-1 fw-bold text-success">₱{{ monthly_stats.total_revenue|floatformat:2 }}</div>
+        <div class="text-muted small">Official receipts collected</div>
+      </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+      <div class="card shadow-sm p-3">
+        <div class="text-muted small text-uppercase fw-bold">Fleet Maintenance Expenses</div>
+        <div class="h2 mb-1 fw-bold text-danger">₱{{ monthly_stats.total_maintenance_cost|floatformat:2 }}</div>
+        <div class="text-muted small">Preventive & corrective repairs</div>
+      </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+      <div class="card shadow-sm p-3">
+        <div class="text-muted small text-uppercase fw-bold">Total Operating Hours</div>
+        <div class="h2 mb-1 fw-bold text-primary">{{ monthly_stats.total_operating_hours|floatformat:1 }} <small class="fs-6 text-muted">hrs</small></div>
+        <div class="text-muted small">Logged engine operating time</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ANALYTICS BREAKDOWN TABLES -->
+  <div class="row row-cards mb-4">
+    <!-- Category Revenue -->
+    <div class="col-lg-6">
+      <div class="card shadow-sm h-100">
+        <div class="card-header">
+          <h3 class="card-title mb-0"><i class="fas fa-chart-pie me-2 text-primary"></i>Revenue by Machinery Classification</h3>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-vcenter card-table">
+            <thead>
+              <tr>
+                <th>Category</th>
+                <th class="text-end">Collections (PHP)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for cat in revenue_by_category %}
+              <tr>
+                <td class="fw-semibold">{{ cat.request__items__equipment__category__category_name|default:"General Equipment" }}</td>
+                <td class="text-end fw-bold text-success">₱{{ cat.total_collected|floatformat:2 }}</td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="2" class="text-center py-3 text-muted">No collections recorded yet.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Utilization by Equipment -->
+    <div class="col-lg-6">
+      <div class="card shadow-sm h-100">
+        <div class="card-header">
+          <h3 class="card-title mb-0"><i class="fas fa-ranking-star me-2 text-warning"></i>Most Utilized Fleet Equipment</h3>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-vcenter card-table">
+            <thead>
+              <tr>
+                <th>Equipment Code & Name</th>
+                <th class="text-center">Hours</th>
+                <th class="text-end">Fuel (Liters)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for eq in hours_by_equipment %}
+              <tr>
+                <td>
+                  <span class="badge bg-dark me-1">{{ eq.assignment__equipment__equipment_code }}</span>
+                  <span class="fw-semibold">{{ eq.assignment__equipment__equipment_name }}</span>
+                </td>
+                <td class="text-center fw-bold text-primary">{{ eq.total_hours|floatformat:1 }} hrs</td>
+                <td class="text-end text-muted">{{ eq.total_fuel|floatformat:1 }} L</td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="3" class="text-center py-3 text-muted">No operating hours logged yet.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RECENT FIELD LOGS -->
+  <div class="card shadow-sm mb-4">
+    <div class="card-header">
+      <h3 class="card-title mb-0"><i class="fas fa-clock-rotate-left me-2 text-indigo"></i>Recent Field Utilization & Accomplishment Logs</h3>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-vcenter card-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Equipment</th>
+            <th>Operating Hours</th>
+            <th>Fuel Used</th>
+            <th>Work Description</th>
+            <th>Logged By</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for log in recent_logs %}
+          <tr>
+            <td>{{ log.usage_date|date:"M j, Y" }}</td>
+            <td class="fw-bold">[{{ log.assignment.equipment.equipment_code }}] {{ log.assignment.equipment.equipment_name }}</td>
+            <td class="fw-bold text-primary">{{ log.operating_hours }} hrs</td>
+            <td class="text-muted">{{ log.fuel_used_liters }} L</td>
+            <td class="small">{{ log.work_description }}</td>
+            <td class="text-muted small">{{ log.logged_by.username|default:"Operator" }}</td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="6" class="text-center py-4 text-muted">No daily logs recorded yet.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

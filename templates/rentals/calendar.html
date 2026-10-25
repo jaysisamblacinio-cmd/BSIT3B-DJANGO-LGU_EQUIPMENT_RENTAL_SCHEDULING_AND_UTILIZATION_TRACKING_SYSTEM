@@ -1,0 +1,135 @@
+{% extends "theme/base.html" %}
+{% block content %}
+<div class="container-xl">
+
+  <div class="page-header d-print-none mb-3">
+    <div class="row align-items-center">
+      <div class="col">
+        <div class="page-pretitle text-uppercase fw-bold text-primary">Operations & Dispatch</div>
+        <h2 class="page-title"><i class="fas fa-calendar-alt me-2 text-primary"></i>Equipment Scheduling & Availability Calendar</h2>
+      </div>
+      <div class="col-auto ms-auto d-flex gap-2">
+        <a href="{% url 'rentals:apply_rental' %}" class="btn btn-warning text-dark fw-bold">
+          <i class="fas fa-plus me-1"></i> New Rental Request
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- CALENDAR LEGEND & CONTROLS -->
+  <div class="card shadow-sm mb-3">
+    <div class="card-body py-2 px-3">
+      <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+        <div class="d-flex align-items-center gap-3">
+          <span class="small fw-bold text-uppercase text-muted">Legend:</span>
+          <span class="badge bg-warning text-dark"><i class="fas fa-circle me-1 text-dark"></i>Scheduled Booking</span>
+          <span class="badge bg-primary text-white"><i class="fas fa-circle me-1 text-white"></i>In Progress / Deployed</span>
+          <span class="badge bg-danger text-white"><i class="fas fa-wrench me-1"></i>Maintenance Downtime</span>
+        </div>
+        <div class="text-muted small">
+          <i class="fas fa-shield-alt text-success me-1"></i> Prevents overlapping equipment reservations
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CALENDAR CONTAINER -->
+  <div class="card shadow-sm mb-4">
+    <div class="card-body p-4">
+      <div id="calendar" style="min-height: 650px;"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- EVENT DETAILS MODAL -->
+<div class="modal modal-blur fade" id="eventDetailModal" tabindex="-1">
+  <div class="modal-dialog modal-md modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="eventModalTitle">Schedule Details</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="p-3 bg-surface-secondary rounded mb-3">
+          <div class="h3 mb-1" id="eventEquipment"></div>
+          <div class="text-muted small" id="eventTypeBadge"></div>
+        </div>
+        <table class="table table-sm table-borderless">
+          <tbody>
+            <tr>
+              <td class="text-muted">Start Time:</td>
+              <td class="fw-bold" id="eventStartTime"></td>
+            </tr>
+            <tr>
+              <td class="text-muted">End Time:</td>
+              <td class="fw-bold" id="eventEndTime"></td>
+            </tr>
+            <tr>
+              <td class="text-muted">Status:</td>
+              <td id="eventStatus"></td>
+            </tr>
+            <tr>
+              <td class="text-muted">Location:</td>
+              <td id="eventLocation"></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Close</button>
+        <a href="#" class="btn btn-primary" id="eventLink">View Equipment Page &rarr;</a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Include FullCalendar CDN for scheduling -->
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const calendarEl = document.getElementById('calendar');
+  const eventModal = new bootstrap.Modal(document.getElementById('eventDetailModal'));
+
+  const calendar = new FullCalendar.Calendar(calendarEl, {
+    initialView: 'dayGridMonth',
+    headerToolbar: {
+      left: 'prev,next today',
+      center: 'title',
+      right: 'dayGridMonth,timeGridWeek,listMonth'
+    },
+    navLinks: true,
+    editable: false,
+    dayMaxEvents: true,
+    events: "{% url 'rentals:calendar_events_api' %}",
+    eventClick: function(info) {
+      info.jsEvent.preventDefault();
+      const event = info.event;
+      const props = event.extendedProps || {};
+
+      document.getElementById('eventModalTitle').textContent = event.title;
+      document.getElementById('eventEquipment').textContent = props.equipment || event.title;
+      document.getElementById('eventTypeBadge').textContent = props.type || 'Reservation';
+      document.getElementById('eventStartTime').textContent = event.start ? event.start.toLocaleString() : 'N/A';
+      document.getElementById('eventEndTime').textContent = event.end ? event.end.toLocaleString() : 'N/A';
+      document.getElementById('eventStatus').innerHTML = `<span class="badge bg-primary-lt">${props.status || 'Active'}</span>`;
+      document.getElementById('eventLocation').textContent = props.location || 'Municipal Motorpool Depot';
+
+      const linkBtn = document.getElementById('eventLink');
+      if (event.url) {
+        linkBtn.href = event.url;
+        linkBtn.classList.remove('d-none');
+      } else {
+        linkBtn.classList.add('d-none');
+      }
+
+      eventModal.show();
+    }
+  });
+
+  calendar.render();
+});
+</script>
+{% endblock %}

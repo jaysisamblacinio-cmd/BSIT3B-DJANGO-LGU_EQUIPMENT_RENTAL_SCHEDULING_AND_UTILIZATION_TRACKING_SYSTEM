@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Official Receipt - {{ payment.reference_or_no|default:payment.id }}</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    @page { size: A5 landscape; margin: 10mm; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      font-size: 10.5pt;
+      line-height: 1.4;
+      color: #0f172a;
+      background: #f1f5f9;
+      margin: 0;
+      padding: 20px;
+    }
+    .sheet {
+      max-width: 650px;
+      margin: 0 auto;
+      background: #ffffff;
+      padding: 30px 35px;
+      border: 2px dashed #0284c7;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+      position: relative;
+    }
+    .header {
+      text-align: center;
+      border-bottom: 2px solid #0284c7;
+      padding-bottom: 12px;
+      margin-bottom: 18px;
+    }
+    .or-badge {
+      position: absolute;
+      top: 30px;
+      right: 35px;
+      text-align: right;
+    }
+    table.data-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 12px 0;
+    }
+    table.data-table td {
+      padding: 6px 4px;
+      vertical-align: top;
+    }
+    .amount-box {
+      background: #f0fdf4;
+      border: 1px solid #86efac;
+      padding: 10px 15px;
+      border-radius: 4px;
+      margin: 15px 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .btn-bar {
+      max-width: 650px;
+      margin: 0 auto 15px auto;
+      display: flex;
+      justify-content: space-between;
+    }
+    .btn {
+      padding: 8px 14px;
+      font-size: 9.5pt;
+      border-radius: 4px;
+      text-decoration: none;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    @media print {
+      body { background: white; padding: 0; }
+      .sheet { border: 2px solid #0284c7; box-shadow: none; padding: 20px; }
+      .btn-bar { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="btn-bar">
+    <a href="javascript:window.history.back()" class="btn" style="background:#e2e8f0; color:#1e293b;">&larr; Back to System</a>
+    <button onclick="window.print()" class="btn" style="background:#0284c7; color:white; border:none;"><i class="fas fa-print me-1"></i> Print Receipt</button>
+  </div>
+
+  <div class="sheet">
+    <div class="or-badge">
+      <div style="font-size: 9pt; color:#64748b;">OFFICIAL RECEIPT NO.</div>
+      <div style="font-size: 13pt; font-weight: 800; color: #b91c1c;">{{ payment.reference_or_no|default:payment.id }}</div>
+    </div>
+
+    <div class="header">
+      <div style="font-size: 9pt; font-weight: 600; text-transform: uppercase;">Republic of the Philippines</div>
+      <div style="font-size: 10.5pt; font-weight: 700;">OFFICE OF THE MUNICIPAL TREASURER</div>
+      <div style="font-size: 13pt; font-weight: 800; color: #0369a1; margin-top: 4px; text-transform: uppercase;">Official Collection Receipt</div>
+    </div>
+
+    <table class="data-table">
+      <tr>
+        <td style="width: 25%; color: #64748b;">Date & Time:</td>
+        <td style="width: 75%; font-weight: 700;">{{ payment.payment_date|date:"F j, Y - g:i A" }}</td>
+      </tr>
+      <tr>
+        <td style="color: #64748b;">Received From:</td>
+        <td style="font-size: 12pt; font-weight: 800; color: #0f172a;">{{ req.applicant.display_name }}</td>
+      </tr>
+      <tr>
+        <td style="color: #64748b;">Entity / Address:</td>
+        <td>{{ req.applicant.organization_name|default:req.applicant.applicant_type }} &bull; {{ req.applicant.address }}</td>
+      </tr>
+      <tr>
+        <td style="color: #64748b;">Application Ref:</td>
+        <td><strong>REQ-#{% filter stringformat:"04d" %}{{ req.id }}{% endfilter %}</strong> ({{ req.purpose|truncatewords:8 }})</td>
+      </tr>
+      <tr>
+        <td style="color: #64748b;">Payment For:</td>
+        <td><strong style="text-transform: uppercase;">{{ payment.payment_type }}</strong> via <strong>{{ payment.payment_method }}</strong></td>
+      </tr>
+      {% if payment.remarks %}
+      <tr>
+        <td style="color: #64748b;">Remarks:</td>
+        <td style="font-size: 9.5pt; color: #475569;">{{ payment.remarks }}</td>
+      </tr>
+      {% endif %}
+    </table>
+
+    <div class="amount-box">
+      <div>
+        <span style="font-size: 9pt; color: #166534; font-weight: 600;">AMOUNT COLLECTED:</span>
+      </div>
+      <div>
+        <span style="font-size: 17pt; font-weight: 800; color: #15803d;">₱{{ payment.amount|floatformat:2 }}</span>
+      </div>
+    </div>
+
+    <div style="margin-top: 35px; display: flex; justify-content: space-between; align-items: flex-end;">
+      <div style="font-size: 8.5pt; color: #64748b;">
+        <i class="fas fa-certificate text-primary me-1"></i> Valid as Official LGU Municipal Treasury Proof of Payment.
+      </div>
+      <div style="text-align: center; width: 220px;">
+        <div style="border-top: 1px solid #0f172a; padding-top: 4px; font-weight: 700;">{{ payment.recorded_by.get_full_name|default:payment.recorded_by.username }}</div>
+        <div style="font-size: 8.5pt; color: #64748b;">Municipal Treasury Collecting Officer</div>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

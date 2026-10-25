@@ -1,0 +1,407 @@
+{% extends "theme/base.html" %}
+{% block content %}
+<div class="container-xl">
+
+  <div class="page-header d-print-none mb-3">
+    <div class="row align-items-center">
+      <div class="col">
+        <div class="page-pretitle text-uppercase fw-bold text-primary">Municipal Inventory & Fleet</div>
+        <h2 class="page-title">Government Equipment & Machinery Catalog</h2>
+      </div>
+      <div class="col-auto ms-auto d-flex gap-2">
+        {% if is_applicant or is_admin or is_officer %}
+        <a href="{% url 'rentals:apply_rental' %}" class="btn btn-warning text-dark fw-bold">
+          <i class="fas fa-file-signature me-2"></i> Apply for Rental
+        </a>
+        {% endif %}
+        {% if is_officer or is_admin %}
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#equipmentModal" data-mode="create">
+          <i class="fas fa-plus me-2"></i> Register Equipment
+        </button>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- SEARCH & FILTER CONTROLS -->
+  <div class="card shadow-sm mb-4">
+    <div class="card-body p-3">
+      <form method="GET" class="row g-2 align-items-center">
+        <div class="col-md-4">
+          <div class="input-group">
+            <span class="input-group-text"><i class="fas fa-search text-muted"></i></span>
+            <input type="text" name="q" value="{{ query }}" class="form-control" placeholder="Search by name, code, brand, plate...">
+          </div>
+        </div>
+        <div class="col-md-3">
+          <select name="category" class="form-select">
+            <option value="">All Machinery Categories</option>
+            {% for cat in categories %}
+            <option value="{{ cat.id }}" {% if selected_category == cat.id|stringformat:"s" %}selected{% endif %}>{{ cat.category_name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-3">
+          <select name="status" class="form-select">
+            <option value="">All Availability Statuses</option>
+            {% for code, label in status_choices %}
+            <option value="{{ code }}" {% if selected_status == code %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-2 d-flex gap-2">
+          <button type="submit" class="btn btn-primary w-100"><i class="fas fa-filter me-1"></i> Filter</button>
+          {% if query or selected_category or selected_status %}
+          <a href="{% url 'rentals:equipment_list' %}" class="btn btn-outline-secondary" title="Clear Filters"><i class="fas fa-redo"></i></a>
+          {% endif %}
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- EQUIPMENT GRID CARDS -->
+  <div class="row row-cards mb-4">
+    {% for eq in equipment_list %}
+    <div class="col-sm-6 col-lg-4">
+      <div class="card shadow-sm h-100 hover-shadow transition">
+        <div class="card-status-top {% if eq.availability_status == 'Available' %}bg-success{% elif eq.availability_status == 'In Use' %}bg-primary{% elif eq.availability_status == 'Under Maintenance' %}bg-danger{% else %}bg-warning{% endif %}"></div>
+        <div class="card-body">
+          <div class="d-flex align-items-start justify-content-between mb-2">
+            <div>
+              <span class="badge bg-dark text-white fw-bold me-1">{{ eq.equipment_code }}</span>
+              <span class="badge bg-blue-lt">{{ eq.category.category_name }}</span>
+            </div>
+            <span class="badge {{ eq.status_badge_class }}">{{ eq.availability_status }}</span>
+          </div>
+
+          <h3 class="card-title mb-1">
+            <a href="{% url 'rentals:equipment_detail' eq.id %}" class="text-reset">{{ eq.equipment_name }}</a>
+          </h3>
+          <div class="text-muted small mb-3">
+            <i class="fas fa-industry me-1"></i> {{ eq.brand|default:"Standard" }} {{ eq.model|default:"" }}
+            {% if eq.plate_number %} &bull; Plate: <strong>{{ eq.plate_number }}</strong>{% endif %}
+          </div>
+
+          <!-- Specs list -->
+          <div class="p-2 rounded bg-surface-secondary small mb-3">
+            <div class="d-flex justify-content-between py-1 border-bottom">
+              <span class="text-muted">Standard Rental Rate:</span>
+              <span class="fw-bold text-success">{{ eq.display_rate }}</span>
+            </div>
+            <div class="d-flex justify-content-between py-1 border-bottom">
+              <span class="text-muted">Equipment Condition:</span>
+              <span class="badge {{ eq.condition_badge_class }}">{{ eq.condition_status }}</span>
+            </div>
+            <div class="d-flex justify-content-between py-1">
+              <span class="text-muted">Depot / Location:</span>
+              <span class="text-truncate" style="max-width: 160px;" title="{{ eq.current_location }}">{{ eq.current_location|default:"LGU Motorpool" }}</span>
+            </div>
+          </div>
+
+          <!-- Card actions -->
+          <div class="d-flex align-items-center justify-content-between gap-2 mt-auto">
+            <a href="{% url 'rentals:equipment_detail' eq.id %}" class="btn btn-sm btn-outline-primary">
+              <i class="fas fa-circle-info me-1"></i> Details
+            </a>
+
+            <div class="d-flex gap-1">
+              {% if is_applicant or is_admin or is_officer %}
+              {% if eq.availability_status == 'Available' %}
+              <a href="{% url 'rentals:apply_rental' %}?equipment_id={{ eq.id }}" class="btn btn-sm btn-warning text-dark fw-bold" title="Request this Machinery">
+                <i class="fas fa-file-signature me-1"></i> Rent
+              </a>
+              {% endif %}
+              {% endif %}
+
+              {% if is_officer or is_admin %}
+              <button type="button" class="btn btn-sm btn-ghost-secondary btn-icon"
+                      data-bs-toggle="modal" data-bs-target="#equipmentModal"
+                      data-mode="edit"
+                      data-id="{{ eq.id }}"
+                      data-code="{{ eq.equipment_code }}"
+                      data-name="{{ eq.equipment_name }}"
+                      data-category="{{ eq.category.id }}"
+                      data-brand="{{ eq.brand }}"
+                      data-model="{{ eq.model }}"
+                      data-plate="{{ eq.plate_number }}"
+                      data-serial="{{ eq.serial_number }}"
+                      data-condition="{{ eq.condition_status }}"
+                      data-availability="{{ eq.availability_status }}"
+                      data-location="{{ eq.current_location }}"
+                      data-rate="{{ eq.active_rate.rate_amount|default:'' }}"
+                      data-unit="{{ eq.active_rate.rate_unit|default:'Day' }}"
+                      title="Edit Equipment">
+                <i class="fas fa-pencil text-primary"></i>
+              </button>
+
+              <button type="button" class="btn btn-sm btn-ghost-secondary btn-icon"
+                      data-bs-toggle="modal" data-bs-target="#deleteEquipmentModal"
+                      data-id="{{ eq.id }}"
+                      data-name="{{ eq.equipment_code }} - {{ eq.equipment_name }}"
+                      title="Delete Equipment">
+                <i class="fas fa-trash-alt text-danger"></i>
+              </button>
+              {% endif %}
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+    {% empty %}
+    <div class="col-12">
+      <div class="empty py-5 text-center">
+        <div class="empty-icon text-muted mb-3"><i class="fas fa-tractor fa-3x"></i></div>
+        <p class="empty-title fs-3">No Machinery Found</p>
+        <p class="empty-subtitle text-muted">Try adjusting your keyword filter or register new equipment to the fleet.</p>
+        {% if is_officer or is_admin %}
+        <button type="button" class="btn btn-primary mt-2" data-bs-toggle="modal" data-bs-target="#equipmentModal" data-mode="create">
+          <i class="fas fa-plus me-1"></i> Register New Machinery
+        </button>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- PAGINATION -->
+  {% if equipment_list.paginator.num_pages > 1 %}
+  <div class="d-flex align-items-center justify-content-between mb-4">
+    <p class="m-0 text-muted small">
+      Showing <strong>{{ equipment_list.start_index }}</strong> to <strong>{{ equipment_list.end_index }}</strong> of <strong>{{ equipment_list.paginator.count }}</strong> units
+    </p>
+    <ul class="pagination m-0">
+      {% if equipment_list.has_previous %}
+      <li class="page-item">
+        <a class="page-link" href="?page={{ equipment_list.previous_page_number }}{% if query %}&q={{ query }}{% endif %}{% if selected_category %}&category={{ selected_category }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}">Prev</a>
+      </li>
+      {% endif %}
+      {% for num in equipment_list.paginator.page_range %}
+      <li class="page-item {% if equipment_list.number == num %}active{% endif %}">
+        <a class="page-link" href="?page={{ num }}{% if query %}&q={{ query }}{% endif %}{% if selected_category %}&category={{ selected_category }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}">{{ num }}</a>
+      </li>
+      {% endfor %}
+      {% if equipment_list.has_next %}
+      <li class="page-item">
+        <a class="page-link" href="?page={{ equipment_list.next_page_number }}{% if query %}&q={{ query }}{% endif %}{% if selected_category %}&category={{ selected_category }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}">Next</a>
+      </li>
+      {% endif %}
+    </ul>
+  </div>
+  {% endif %}
+
+</div>
+
+<!-- REGISTER / EDIT EQUIPMENT MODAL -->
+<div class="modal modal-blur fade" id="equipmentModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="equipmentModalTitle">Register Government Machinery</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form id="equipmentForm">
+        {% csrf_token %}
+        <input type="hidden" name="id" id="eq_id">
+        <div class="modal-body">
+          <div id="equipmentFormError" class="alert alert-danger d-none"></div>
+          <div class="row g-3">
+            <div class="col-md-4">
+              <label class="form-label required">Equipment Code</label>
+              <input type="text" name="equipment_code" id="eq_code" class="form-control" placeholder="e.g. DT-003, BH-002" required>
+            </div>
+            <div class="col-md-8">
+              <label class="form-label required">Equipment Name</label>
+              <input type="text" name="equipment_name" id="eq_name" class="form-control" placeholder="e.g. 10-Wheeler Heavy Dump Truck" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label required">Category</label>
+              <select name="category_id" id="eq_category" class="form-select" required>
+                <option value="">Select Category...</option>
+                {% for cat in categories %}
+                <option value="{{ cat.id }}">{{ cat.category_name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Brand</label>
+              <input type="text" name="brand" id="eq_brand" class="form-control" placeholder="e.g. Isuzu, CAT, Kubota">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Model</label>
+              <input type="text" name="model" id="eq_model" class="form-control" placeholder="e.g. 500 Series, 428F2">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Plate / Conduction Number</label>
+              <input type="text" name="plate_number" id="eq_plate" class="form-control" placeholder="e.g. SAB-1026">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Serial Number / Chassis</label>
+              <input type="text" name="serial_number" id="eq_serial" class="form-control" placeholder="e.g. ISZ-882910">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Standard Rental Rate (PHP)</label>
+              <input type="number" step="0.01" name="rate_amount" id="eq_rate" class="form-control" placeholder="e.g. 5500.00">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Rate Unit</label>
+              <select name="rate_unit" id="eq_unit" class="form-select">
+                <option value="Day" selected>Per Day (8 Hours)</option>
+                <option value="Hour">Per Operating Hour</option>
+                <option value="Month">Per Month</option>
+                <option value="Project">Per Project Basis</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Condition Status</label>
+              <select name="condition_status" id="eq_condition" class="form-select">
+                <option value="Excellent">Excellent</option>
+                <option value="Good" selected>Good</option>
+                <option value="Fair">Fair</option>
+                <option value="Needs Repair">Needs Repair</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Availability Status</label>
+              <select name="availability_status" id="eq_availability" class="form-select">
+                <option value="Available" selected>Available</option>
+                <option value="Reserved">Reserved</option>
+                <option value="In Use">In Use</option>
+                <option value="Under Maintenance">Under Maintenance</option>
+                <option value="Out of Service">Out of Service</option>
+              </select>
+            </div>
+            <div class="col-12">
+              <label class="form-label">Depot / Current Location</label>
+              <input type="text" name="current_location" id="eq_location" class="form-control" placeholder="e.g. LGU Motorpool Bay 3, Poblacion">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="eqSubmitBtn">Save Machinery</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- DELETE MODAL -->
+<div class="modal modal-blur fade" id="deleteEquipmentModal" tabindex="-1">
+  <div class="modal-dialog modal-sm modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title text-danger">Confirm Decommission</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p>Are you sure you want to remove <strong id="deleteEquipmentName"></strong> from the active fleet inventory?</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-danger" id="confirmDeleteEquipmentBtn">Remove</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+  const modalEl = document.getElementById('equipmentModal');
+  const form = document.getElementById('equipmentForm');
+  const errorBox = document.getElementById('equipmentFormError');
+  const submitBtn = document.getElementById('eqSubmitBtn');
+  const title = document.getElementById('equipmentModalTitle');
+
+  const deleteModalEl = document.getElementById('deleteEquipmentModal');
+  const confirmDeleteBtn = document.getElementById('confirmDeleteEquipmentBtn');
+  const deleteNameSpan = document.getElementById('deleteEquipmentName');
+  let currentDeleteId = null;
+
+  modalEl.addEventListener('show.bs.modal', function(event) {
+    const btn = event.relatedTarget;
+    errorBox.classList.add('d-none');
+    form.reset();
+
+    if (!btn || btn.getAttribute('data-mode') !== 'edit') {
+      title.textContent = 'Register Government Machinery';
+      document.getElementById('eq_id').value = '';
+      document.getElementById('eq_availability').value = 'Available';
+      document.getElementById('eq_condition').value = 'Good';
+      submitBtn.textContent = 'Register Machinery';
+    } else {
+      title.textContent = 'Edit Machinery Information';
+      document.getElementById('eq_id').value = btn.getAttribute('data-id');
+      document.getElementById('eq_code').value = btn.getAttribute('data-code');
+      document.getElementById('eq_name').value = btn.getAttribute('data-name');
+      document.getElementById('eq_category').value = btn.getAttribute('data-category');
+      document.getElementById('eq_brand').value = btn.getAttribute('data-brand') || '';
+      document.getElementById('eq_model').value = btn.getAttribute('data-model') || '';
+      document.getElementById('eq_plate').value = btn.getAttribute('data-plate') || '';
+      document.getElementById('eq_serial').value = btn.getAttribute('data-serial') || '';
+      document.getElementById('eq_condition').value = btn.getAttribute('data-condition') || 'Good';
+      document.getElementById('eq_availability').value = btn.getAttribute('data-availability') || 'Available';
+      document.getElementById('eq_location').value = btn.getAttribute('data-location') || '';
+      document.getElementById('eq_rate').value = btn.getAttribute('data-rate') || '';
+      document.getElementById('eq_unit').value = btn.getAttribute('data-unit') || 'Day';
+      submitBtn.textContent = 'Save Changes';
+    }
+  });
+
+  form.addEventListener('submit', function(e) {
+    e.preventDefault();
+    errorBox.classList.add('d-none');
+    submitBtn.disabled = true;
+
+    const fd = new FormData(form);
+    fetch("{% url 'rentals:equipment_save_ajax' %}", {
+      method: 'POST',
+      headers: { 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value },
+      body: fd
+    })
+    .then(r => r.json())
+    .then(d => {
+      if (d.error) {
+        errorBox.textContent = d.error;
+        errorBox.classList.remove('d-none');
+      } else {
+        window.location.reload();
+      }
+    })
+    .catch(() => {
+      errorBox.textContent = 'Error connecting to server.';
+      errorBox.classList.remove('d-none');
+    })
+    .finally(() => { submitBtn.disabled = false; });
+  });
+
+  deleteModalEl.addEventListener('show.bs.modal', function(event) {
+    const btn = event.relatedTarget;
+    currentDeleteId = btn.getAttribute('data-id');
+    deleteNameSpan.textContent = btn.getAttribute('data-name');
+  });
+
+  confirmDeleteBtn.addEventListener('click', function() {
+    if (!currentDeleteId) return;
+    confirmDeleteBtn.disabled = true;
+
+    fetch('/rentals/equipment/ajax/delete/' + currentDeleteId + '/', {
+      method: 'POST',
+      headers: { 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value }
+    })
+    .then(r => r.json())
+    .then(d => {
+      if (d.error) {
+        alert(d.error);
+      } else {
+        window.location.reload();
+      }
+    })
+    .finally(() => { confirmDeleteBtn.disabled = false; });
+  });
+})();
+</script>
+{% endblock %}

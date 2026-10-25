@@ -1,0 +1,254 @@
+{% extends "theme/base.html" %}
+{% block content %}
+<div class="container-xl">
+
+  <div class="page-header d-print-none mb-3">
+    <div class="row align-items-center">
+      <div class="col">
+        <div class="page-pretitle">
+          <a href="{% url 'rentals:equipment_list' %}" class="link-secondary">&larr; Back to Fleet Catalog</a>
+        </div>
+        <h2 class="page-title d-flex align-items-center gap-2">
+          <span>{{ equipment.equipment_name }}</span>
+          <span class="badge bg-dark">{{ equipment.equipment_code }}</span>
+          <span class="badge {{ equipment.status_badge_class }}">{{ equipment.availability_status }}</span>
+        </h2>
+      </div>
+      <div class="col-auto ms-auto d-flex gap-2">
+        {% if equipment.availability_status == 'Available' and is_applicant or is_admin or is_officer %}
+        <a href="{% url 'rentals:apply_rental' %}?equipment_id={{ equipment.id }}" class="btn btn-warning text-dark fw-bold">
+          <i class="fas fa-file-signature me-1"></i> Apply for Rental
+        </a>
+        {% endif %}
+        {% if is_officer or is_admin %}
+        <a href="{% url 'rentals:maintenance_list' %}" class="btn btn-outline-danger">
+          <i class="fas fa-tools me-1"></i> Schedule Maintenance
+        </a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="row row-cards mb-4">
+    <!-- Machinery Info Summary -->
+    <div class="col-lg-4">
+      <div class="card shadow-sm h-100">
+        <div class="card-header bg-surface-secondary">
+          <h3 class="card-title"><i class="fas fa-truck-monster me-2 text-primary"></i>Specifications</h3>
+        </div>
+        <div class="card-body">
+          <div class="mb-3 text-center p-3 bg-surface-secondary rounded">
+            <i class="fas fa-tractor fa-4x text-primary mb-2"></i>
+            <div class="h2 mb-0 fw-bold text-success">{{ equipment.display_rate }}</div>
+            <div class="text-muted small">Standard Rental Charge</div>
+          </div>
+
+          <table class="table table-sm table-borderless">
+            <tbody>
+              <tr>
+                <td class="text-muted">Category:</td>
+                <td class="fw-bold">{{ equipment.category.category_name }}</td>
+              </tr>
+              <tr>
+                <td class="text-muted">Brand / Model:</td>
+                <td>{{ equipment.brand|default:"Standard" }} {{ equipment.model|default:"" }}</td>
+              </tr>
+              <tr>
+                <td class="text-muted">Plate Number:</td>
+                <td><span class="badge bg-secondary-lt">{{ equipment.plate_number|default:"No Plate" }}</span></td>
+              </tr>
+              <tr>
+                <td class="text-muted">Serial / Chassis:</td>
+                <td>{{ equipment.serial_number|default:"N/A" }}</td>
+              </tr>
+              <tr>
+                <td class="text-muted">Condition:</td>
+                <td><span class="badge {{ equipment.condition_badge_class }}">{{ equipment.condition_status }}</span></td>
+              </tr>
+              <tr>
+                <td class="text-muted">Current Depot:</td>
+                <td>{{ equipment.current_location|default:"LGU Motorpool" }}</td>
+              </tr>
+              <tr>
+                <td class="text-muted">Acquisition Cost:</td>
+                <td>₱{{ equipment.acquisition_cost|default:"0.00"|floatformat:2 }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Activity & History Tabs -->
+    <div class="col-lg-8">
+      <div class="card shadow-sm">
+        <div class="card-header">
+          <ul class="nav nav-tabs card-header-tabs" data-bs-toggle="tabs">
+            <li class="nav-item">
+              <a href="#tab-reservations" class="nav-link active" data-bs-toggle="tab">
+                <i class="fas fa-calendar-check me-2"></i>Bookings & Reservations
+              </a>
+            </li>
+            <li class="nav-item">
+              <a href="#tab-deployments" class="nav-link" data-bs-toggle="tab">
+                <i class="fas fa-truck-pickup me-2"></i>Field Deployments
+              </a>
+            </li>
+            <li class="nav-item">
+              <a href="#tab-maintenance" class="nav-link" data-bs-toggle="tab">
+                <i class="fas fa-wrench me-2"></i>Maintenance History
+              </a>
+            </li>
+            <li class="nav-item">
+              <a href="#tab-rates" class="nav-link" data-bs-toggle="tab">
+                <i class="fas fa-tags me-2"></i>Rental Rates
+              </a>
+            </li>
+          </ul>
+        </div>
+
+        <div class="card-body">
+          <div class="tab-content">
+
+            <!-- TAB 1: RESERVATIONS -->
+            <div class="tab-pane active show" id="tab-reservations">
+              <div class="table-responsive">
+                <table class="table table-vcenter table-hover">
+                  <thead>
+                    <tr>
+                      <th>Booking #</th>
+                      <th>Applicant</th>
+                      <th>Scheduled Period</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for res in reservations %}
+                    <tr>
+                      <td class="fw-bold">RES-#{% filter stringformat:"04d" %}{{ res.id }}{% endfilter %}</td>
+                      <td>{{ res.request.applicant.display_name|default:"LGU Project" }}</td>
+                      <td class="text-muted small">
+                        {{ res.scheduled_start|date:"M j, Y" }} &rarr; {{ res.scheduled_end|date:"M j, Y" }}
+                      </td>
+                      <td><span class="badge {{ res.status_badge_class }}">{{ res.status }}</span></td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                      <td colspan="4" class="text-center py-4 text-muted">No reservations on record.</td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- TAB 2: DEPLOYMENTS -->
+            <div class="tab-pane" id="tab-deployments">
+              <div class="table-responsive">
+                <table class="table table-vcenter table-hover">
+                  <thead>
+                    <tr>
+                      <th>Release Date</th>
+                      <th>Operator</th>
+                      <th>Released By</th>
+                      <th>Return Date</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for d in deployments %}
+                    <tr>
+                      <td class="text-muted small">{{ d.released_at|date:"M j, Y H:i"|default:"Pending" }}</td>
+                      <td>{{ d.operator.get_full_name|default:d.operator.username|default:"Unassigned" }}</td>
+                      <td>{{ d.released_by.username|default:"N/A" }}</td>
+                      <td class="text-muted small">{{ d.returned_at|date:"M j, Y H:i"|default:"In Field" }}</td>
+                      <td><span class="badge {{ d.status_badge_class }}">{{ d.status }}</span></td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                      <td colspan="5" class="text-center py-4 text-muted">No field deployments recorded yet.</td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- TAB 3: MAINTENANCE -->
+            <div class="tab-pane" id="tab-maintenance">
+              <div class="table-responsive">
+                <table class="table table-vcenter table-hover">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Type</th>
+                      <th>Description</th>
+                      <th>Cost</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for m in maintenance_records %}
+                    <tr>
+                      <td>{{ m.scheduled_date|date:"M j, Y" }}</td>
+                      <td><span class="badge bg-secondary-lt">{{ m.maintenance_type }}</span></td>
+                      <td class="small">{{ m.description }}</td>
+                      <td class="fw-bold">₱{{ m.cost|floatformat:2 }}</td>
+                      <td><span class="badge {{ m.status_badge_class }}">{{ m.status }}</span></td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                      <td colspan="5" class="text-center py-4 text-muted">No maintenance records for this unit.</td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- TAB 4: RATES -->
+            <div class="tab-pane" id="tab-rates">
+              <div class="table-responsive">
+                <table class="table table-vcenter table-hover">
+                  <thead>
+                    <tr>
+                      <th>Rate Amount</th>
+                      <th>Unit</th>
+                      <th>Effective From</th>
+                      <th>Status</th>
+                      <th>Notes</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for r in rates %}
+                    <tr>
+                      <td class="fw-bold text-success">₱{{ r.rate_amount|floatformat:2 }}</td>
+                      <td>Per {{ r.rate_unit }}</td>
+                      <td>{{ r.effective_from|date:"M j, Y" }}</td>
+                      <td>
+                        {% if r.is_active %}
+                        <span class="badge bg-success-lt text-success">Active Rate</span>
+                        {% else %}
+                        <span class="badge bg-secondary-lt">Archived</span>
+                        {% endif %}
+                      </td>
+                      <td class="text-muted small">{{ r.notes|default:"Standard rate" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                      <td colspan="5" class="text-center py-4 text-muted">No historical rates set.</td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

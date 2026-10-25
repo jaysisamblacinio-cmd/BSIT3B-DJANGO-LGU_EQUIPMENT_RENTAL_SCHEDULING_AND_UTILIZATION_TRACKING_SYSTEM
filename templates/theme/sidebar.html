@@ -1,13 +1,13 @@
 <aside class="navbar navbar-vertical navbar-expand-lg navbar-dark dh-sidebar">
   <div class="container-fluid">
-    <div class="navbar-brand navbar-brand-autodark dh-brand">
-      <a href="." class="d-flex align-items-center gap-2 text-decoration-none">
-        <span class="dh-brand-mark">
-          <i class="fa-solid fa-shield-halved"></i>
+    <div class="navbar-brand navbar-brand-autodark dh-brand py-3">
+      <a href="{% url 'dashboard' %}" class="d-flex align-items-center gap-2 text-decoration-none">
+        <span class="dh-brand-mark bg-warning text-dark d-flex align-items-center justify-content-center rounded-3 shadow-sm" style="width: 38px; height: 38px;">
+          <i class="fa-solid fa-truck-monster fs-4"></i>
         </span>
         <span class="lh-1">
-          <span class="dh-brand-name">Project<span class="text-warning">V3</span></span>
-          <span class="dh-brand-sub">Management System</span>
+          <span class="dh-brand-name fs-3 fw-bold text-white">LGU<span class="text-warning">Equip</span></span>
+          <span class="dh-brand-sub d-block text-white-50 text-uppercase tracking-wider" style="font-size: 0.65rem;">Rental & Tracking</span>
         </span>
       </a>
     </div>
@@ -20,18 +20,14 @@
       aria-controls="sidebar-menu"
       aria-expanded="false"
       aria-label="Toggle navigation"
-      >
+    >
       <span class="navbar-toggler-icon"></span>
     </button>
 
     <div class="collapse navbar-collapse" id="sidebar-menu">
       <ul class="navbar-nav pt-lg-2 py-lg-2">
 
-        <li class="nav-item">
-          <span class="dh-nav-section">
-            Menu
-          </span>
-        </li>
+        <!-- DASHBOARD -->
         <li class="nav-item mb-1">
           <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" href="{% url 'dashboard' %}">
             <span class="nav-link-icon d-md-none d-lg-inline-block">
@@ -41,51 +37,194 @@
           </a>
         </li>
 
+        <!-- APPLICANT SECTION -->
+        {% if is_applicant or is_admin or is_officer %}
+        <li class="nav-item mt-2">
+          <span class="dh-nav-section text-uppercase text-muted fw-bold" style="font-size: 0.68rem; letter-spacing: 0.08em; padding: 0.5rem 0.75rem;">
+            Applicant Portal
+          </span>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {% if request.resolver_match.url_name == 'apply_rental' %}active{% endif %}" href="{% url 'rentals:apply_rental' %}">
+            <span class="nav-link-icon d-md-none d-lg-inline-block text-warning">
+              <i class="fas fa-file-signature"></i>
+            </span>
+            <span class="nav-link-title">Apply for Rental</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {% if request.resolver_match.url_name == 'my_requests' %}active{% endif %}" href="{% url 'rentals:my_requests' %}">
+            <span class="nav-link-icon d-md-none d-lg-inline-block">
+              <i class="fas fa-clipboard-list"></i>
+            </span>
+            <span class="nav-link-title">My Applications</span>
+          </a>
+        </li>
+        {% endif %}
+
+        <!-- FLEET & SCHEDULING (Officer & Admin) -->
+        {% if is_officer or is_admin %}
+        <li class="nav-item mt-2">
+          <span class="dh-nav-section text-uppercase text-muted fw-bold" style="font-size: 0.68rem; letter-spacing: 0.08em; padding: 0.5rem 0.75rem;">
+            Equipment Operations
+          </span>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {% if request.resolver_match.url_name == 'equipment_list' or request.resolver_match.url_name == 'equipment_detail' %}active{% endif %}" href="{% url 'rentals:equipment_list' %}">
+            <span class="nav-link-icon d-md-none d-lg-inline-block">
+              <i class="fas fa-tractor"></i>
+            </span>
+            <span class="nav-link-title">Equipment Fleet</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {% if request.resolver_match.url_name == 'requests_list' %}active{% endif %}" href="{% url 'rentals:requests_list' %}">
+            <span class="nav-link-icon d-md-none d-lg-inline-block">
+              <i class="fas fa-inbox"></i>
+            </span>
+            <span class="nav-link-title">Review Requests</span>
+            {% if pending_requests_count > 0 %}
+            <span class="badge bg-danger ms-auto">{{ pending_requests_count }}</span>
+            {% endif %}
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {% if request.resolver_match.url_name == 'calendar' %}active{% endif %}" href="{% url 'rentals:calendar' %}">
+            <span class="nav-link-icon d-md-none d-lg-inline-block">
+              <i class="fas fa-calendar-alt"></i>
+            </span>
+            <span class="nav-link-title">Schedule Calendar</span>
+          </a>
+        </li>
+        {% else %}
+        <!-- For non-officer/applicant, simple fleet browse -->
+        <li class="nav-item">
+          <a class="nav-link {% if request.resolver_match.url_name == 'equipment_list' %}active{% endif %}" href="{% url 'rentals:equipment_list' %}">
+            <span class="nav-link-icon d-md-none d-lg-inline-block">
+              <i class="fas fa-tractor"></i>
+            </span>
+            <span class="nav-link-title">Machinery Catalog</span>
+          </a>
+        </li>
+        {% endif %}
+
+        <!-- DEPLOYMENTS & UTILIZATION (Operator, Officer, Admin) -->
+        {% if is_operator or is_officer or is_admin %}
+        <li class="nav-item mt-2">
+          <span class="dh-nav-section text-uppercase text-muted fw-bold" style="font-size: 0.68rem; letter-spacing: 0.08em; padding: 0.5rem 0.75rem;">
+            Field & Tracking
+          </span>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {% if request.resolver_match.url_name == 'deployment_list' %}active{% endif %}" href="{% url 'rentals:deployment_list' %}">
+            <span class="nav-link-icon d-md-none d-lg-inline-block">
+              <i class="fas fa-gas-pump"></i>
+            </span>
+            <span class="nav-link-title">Deployments & Hours</span>
+          </a>
+        </li>
+        {% endif %}
+
+        <!-- MAINTENANCE -->
+        {% if is_officer or is_admin %}
+        <li class="nav-item">
+          <a class="nav-link {% if request.resolver_match.url_name == 'maintenance_list' %}active{% endif %}" href="{% url 'rentals:maintenance_list' %}">
+            <span class="nav-link-icon d-md-none d-lg-inline-block">
+              <i class="fas fa-tools"></i>
+            </span>
+            <span class="nav-link-title">Maintenance</span>
+          </a>
+        </li>
+        {% endif %}
+
+        <!-- FINANCE & PAYMENTS -->
+        {% if is_finance or is_admin %}
+        <li class="nav-item mt-2">
+          <span class="dh-nav-section text-uppercase text-muted fw-bold" style="font-size: 0.68rem; letter-spacing: 0.08em; padding: 0.5rem 0.75rem;">
+            Finance & Treasury
+          </span>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {% if request.resolver_match.url_name == 'payment_list' %}active{% endif %}" href="{% url 'rentals:payment_list' %}">
+            <span class="nav-link-icon d-md-none d-lg-inline-block text-success">
+              <i class="fas fa-receipt"></i>
+            </span>
+            <span class="nav-link-title">Payments & ORs</span>
+          </a>
+        </li>
+        {% endif %}
+
+        <!-- REPORTS & ANALYTICS -->
+        {% if is_admin or is_officer or is_finance %}
+        <li class="nav-item">
+          <a class="nav-link {% if request.resolver_match.url_name == 'reports' %}active{% endif %}" href="{% url 'rentals:reports' %}">
+            <span class="nav-link-icon d-md-none d-lg-inline-block">
+              <i class="fas fa-chart-line"></i>
+            </span>
+            <span class="nav-link-title">Reports & Export</span>
+          </a>
+        </li>
+        {% endif %}
+
+        <!-- NOTIFICATIONS -->
+        <li class="nav-item mt-2">
+          <a class="nav-link {% if request.resolver_match.url_name == 'notifications' %}active{% endif %}" href="{% url 'rentals:notifications' %}">
+            <span class="nav-link-icon d-md-none d-lg-inline-block">
+              <i class="fas fa-bell"></i>
+            </span>
+            <span class="nav-link-title">Notifications</span>
+            {% if unread_notifications_count > 0 %}
+            <span class="badge bg-warning ms-auto">{{ unread_notifications_count }}</span>
+            {% endif %}
+          </a>
+        </li>
+
+        <!-- USER ADMINISTRATION (Admin Only) -->
+        {% if is_admin %}
+        <li class="nav-item mt-2">
+          <span class="dh-nav-section text-uppercase text-muted fw-bold" style="font-size: 0.68rem; letter-spacing: 0.08em; padding: 0.5rem 0.75rem;">
+            System Settings
+          </span>
+        </li>
         <li class="nav-item">
           <a class="nav-link {% if request.resolver_match.app_name == 'users' %}active{% endif %}" href="{% url 'users:user_list' %}">
             <span class="nav-link-icon d-md-none d-lg-inline-block">
-              <i class="nav-icon fas fa-users"></i>
+              <i class="fas fa-users-cog"></i>
             </span>
-            <span class="nav-link-title">Users</span>
+            <span class="nav-link-title">User Accounts</span>
           </a>
         </li>
+        {% endif %}
 
-        <li class="nav-item">
-          <a class="nav-link {% if request.resolver_match.app_name == 'info' %}active{% endif %}" href="{% url 'info:info_list' %}">
-            <span class="nav-link-icon d-md-none d-lg-inline-block">
-              <i class="nav-icon fas fa-address-card"></i>
-            </span>
-            <span class="nav-link-title">Info</span>
-          </a>
-        </li>
-
+        <!-- LOGOUT (MOBILE ONLY) -->
         {% if user.is_authenticated %}
-        <li class="nav-item d-lg-none">
-          <a class="nav-link" href="{% url 'logout' %}">
-            <span class="nav-link-icon d-md-none d-lg-inline-block">
-              <i class="nav-icon fas fa-sign-out-alt"></i>
+        <li class="nav-item d-lg-none mt-3">
+          <a class="nav-link text-danger" href="{% url 'logout' %}">
+            <span class="nav-link-icon">
+              <i class="fas fa-sign-out-alt"></i>
             </span>
             <span class="nav-link-title">Logout</span>
           </a>
         </li>
         {% endif %}
 
-        <li class="nav-item mt-auto dh-nav-sidebar-footer">
-          <div class="dh-user-card">
-            <a href="{% url 'users:user_list' %}" class="d-flex align-items-center gap-2 text-decoration-none text-white min-w-0 w-100">
-              <span class="dh-avatar">{{ user.username|first|upper }}</span>
-              <span class="min-w-0 flex-grow-1">
-                <span class="dh-user-name">{{ user.username }}</span>
-                <span class="dh-user-role">
-                  {% if user.is_superuser %}Administrator{% elif user.is_authenticated %}Instructor{% endif %}
-                </span>
+        <!-- USER CARD FOOTER -->
+        <li class="nav-item mt-auto dh-nav-sidebar-footer pt-3">
+          <div class="dh-user-card p-2 rounded-3 bg-dark-lt border border-white-10">
+            <div class="d-flex align-items-center gap-2 text-white min-w-0 w-100">
+              <span class="avatar avatar-sm rounded-circle bg-warning text-dark fw-bold">
+                {{ user.username|first|upper }}
               </span>
-            </a>
-            {% if user.is_authenticated %}
-            <a href="{% url 'logout' %}" class="dh-user-logout" title="Logout">
-              <i class="fas fa-sign-out-alt"></i>
-            </a>
-            {% endif %}
+              <div class="min-w-0 flex-grow-1">
+                <div class="dh-user-name fw-semibold text-truncate text-white" style="font-size: 0.85rem;">{{ user.get_full_name|default:user.username }}</div>
+                <div class="dh-user-role badge bg-warning-lt text-warning text-truncate" style="font-size: 0.68rem;">
+                  {{ user_role }}
+                </div>
+              </div>
+              <a href="{% url 'logout' %}" class="btn btn-sm btn-icon btn-ghost-light text-danger" title="Logout">
+                <i class="fas fa-sign-out-alt"></i>
+              </a>
+            </div>
           </div>
         </li>
 

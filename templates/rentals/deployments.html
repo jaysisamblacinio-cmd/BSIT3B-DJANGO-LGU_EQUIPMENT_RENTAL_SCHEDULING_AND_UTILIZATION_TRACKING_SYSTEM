@@ -1,0 +1,398 @@
+{% extends "theme/base.html" %}
+{% block content %}
+<div class="container-xl">
+
+  <div class="page-header d-print-none mb-3">
+    <div class="row align-items-center">
+      <div class="col">
+        <div class="page-pretitle text-uppercase fw-bold text-primary">Field Operations & Utilization Tracking</div>
+        <h2 class="page-title"><i class="fas fa-truck-pickup me-2 text-primary"></i>Equipment Deployments & Engine Hours</h2>
+      </div>
+    </div>
+  </div>
+
+  <!-- STATUS FILTERS -->
+  <div class="card shadow-sm mb-3">
+    <div class="card-body p-3">
+      <form method="GET" class="row g-2 align-items-center">
+        <div class="col-md-5">
+          <div class="input-group">
+            <span class="input-group-text"><i class="fas fa-search text-muted"></i></span>
+            <input type="text" name="q" value="{{ query }}" class="form-control" placeholder="Search equipment code, operator, notes...">
+          </div>
+        </div>
+        <div class="col-md-3">
+          <select name="status" class="form-select">
+            <option value="">All Deployment Statuses</option>
+            <option value="Pending Release" {% if selected_status == 'Pending Release' %}selected{% endif %}>Pending Release</option>
+            <option value="Released" {% if selected_status == 'Released' %}selected{% endif %}>Released (Active In Field)</option>
+            <option value="Returned" {% if selected_status == 'Returned' %}selected{% endif %}>Returned (Inspected)</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <button type="submit" class="btn btn-primary w-100"><i class="fas fa-filter me-1"></i> Filter</button>
+        </div>
+        {% if query or selected_status %}
+        <div class="col-md-2">
+          <a href="{% url 'rentals:deployment_list' %}" class="btn btn-outline-secondary">Clear</a>
+        </div>
+        {% endif %}
+      </form>
+    </div>
+  </div>
+
+  <!-- DEPLOYMENTS TABLE -->
+  <div class="card shadow-sm mb-4">
+    <div class="table-responsive">
+      <table class="table table-vcenter table-hover card-table">
+        <thead>
+          <tr>
+            <th>Deployment #</th>
+            <th>Equipment Unit</th>
+            <th>Assigned Operator</th>
+            <th>Release Inspection</th>
+            <th>Return Inspection</th>
+            <th>Status</th>
+            <th>Logged Hours / Fuel</th>
+            <th class="w-1">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for d in assignments %}
+          <tr>
+            <td class="fw-bold">DEPLOY-#{% filter stringformat:"04d" %}{{ d.id }}{% endfilter %}</td>
+            <td>
+              <div class="fw-bold">[{{ d.equipment.equipment_code }}] {{ d.equipment.equipment_name }}</div>
+              <div class="text-muted small">{{ d.equipment.category.category_name }}</div>
+              <div class="text-muted small"><i class="fas fa-map-marker-alt text-danger me-1"></i>{{ d.reservation.request.project_location|default:"Site" }}</div>
+            </td>
+            <td>
+              {% if d.operator %}
+              <div class="fw-semibold"><i class="fas fa-user-tie text-muted me-1"></i>{{ d.operator.get_full_name|default:d.operator.username }}</div>
+              <div class="text-muted small">Operator ID #{{ d.operator.id }}</div>
+              {% else %}
+              <span class="text-muted small fst-italic">Client Authorized Driver</span>
+              {% endif %}
+            </td>
+            <td class="small">
+              {% if d.released_at %}
+              <div class="text-success"><i class="fas fa-check-circle me-1"></i>{{ d.released_at|date:"M j, Y H:i" }}</div>
+              <div class="text-muted">By: {{ d.released_by.username|default:"Officer" }}</div>
+              <div class="text-truncate text-muted" style="max-width: 170px;" title="{{ d.condition_before }}">{{ d.condition_before }}</div>
+              {% else %}
+              <span class="text-muted fst-italic">Awaiting release inspection</span>
+              {% endif %}
+            </td>
+            <td class="small">
+              {% if d.returned_at %}
+              <div class="text-primary"><i class="fas fa-clock-rotate-left me-1"></i>{{ d.returned_at|date:"M j, Y H:i" }}</div>
+              <div class="text-muted">By: {{ d.received_by.username|default:"Officer" }}</div>
+              <div class="text-truncate text-muted" style="max-width: 170px;" title="{{ d.condition_after }}">{{ d.condition_after }}</div>
+              {% else %}
+              <span class="text-muted fst-italic">Still deployed</span>
+              {% endif %}
+            </td>
+            <td>
+              <span class="badge {{ d.status_badge_class }}">{{ d.status }}</span>
+            </td>
+            <td class="small">
+              {% with logs=d.utilization_logs.all %}
+              {% if logs %}
+              {% for l in logs %}
+              <div class="fw-bold">{{ l.operating_hours }} hrs &bull; {{ l.fuel_used_liters }} L</div>
+              <div class="text-muted small">{{ l.usage_date|date:"M j" }}</div>
+              {% endfor %}
+              {% else %}
+              <span class="text-muted">0 hrs</span>
+              {% endif %}
+              {% endwith %}
+            </td>
+            <td>
+              <div class="d-flex gap-1">
+                <!-- RELEASE BUTTON -->
+                {% if d.status == 'Pending Release' and is_officer %}
+                <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#releaseModal"
+                        data-id="{{ d.id }}"
+                        data-equipment="{{ d.equipment.equipment_code }} - {{ d.equipment.equipment_name }}"
+                        title="Conduct Release Inspection">
+                  <i class="fas fa-arrow-up-from-bracket me-1"></i> Release
+                </button>
+                {% endif %}
+
+                <!-- RETURN BUTTON -->
+                {% if d.status == 'Released' and is_officer %}
+                <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#returnModal"
+                        data-id="{{ d.id }}"
+                        data-equipment="{{ d.equipment.equipment_code }} - {{ d.equipment.equipment_name }}"
+                        title="Conduct Return Inspection">
+                  <i class="fas fa-arrow-down-to-bracket me-1"></i> Return
+                </button>
+                {% endif %}
+
+                <!-- LOG HOURS BUTTON -->
+                {% if d.status == 'Released' %}
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#logHoursModal"
+                        data-id="{{ d.id }}"
+                        data-equipment="{{ d.equipment.equipment_code }}"
+                        title="Log Daily Engine Hours & Fuel">
+                  <i class="fas fa-gas-pump"></i>
+                </button>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="8" class="text-center py-5 text-muted">No equipment deployment assignments found.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% if assignments.paginator.num_pages > 1 %}
+    <div class="card-footer d-flex justify-content-between align-items-center">
+      <span class="text-muted small">Page {{ assignments.number }} of {{ assignments.paginator.num_pages }}</span>
+      <ul class="pagination m-0">
+        {% for num in assignments.paginator.page_range %}
+        <li class="page-item {% if assignments.number == num %}active{% endif %}">
+          <a class="page-link" href="?page={{ num }}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if query %}&q={{ query }}{% endif %}">{{ num }}</a>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+
+<!-- RELEASE MODAL -->
+<div class="modal modal-blur fade" id="releaseModal" tabindex="-1">
+  <div class="modal-dialog modal-md modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Release Machinery to Field</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form id="releaseForm">
+        {% csrf_token %}
+        <div class="modal-body">
+          <div class="p-2 bg-surface-secondary rounded mb-3">
+            <div class="fw-bold" id="releaseEquipmentName"></div>
+            <div class="text-muted small">Pre-deployment physical and safety inspection</div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label required">Condition Before Release</label>
+            <textarea name="condition_before" class="form-control" rows="2" placeholder="e.g. Fuel tank full, tires/tracks inspected, hydraulic pressure nominal, safety lighting functional" required>Fuel tank full, engine oil checked, no visible leaks, safety equipment verified.</textarea>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Assigned Municipal Operator</label>
+            <select name="operator_id" class="form-select">
+              <option value="">-- Client Authorized Driver --</option>
+              {% for op in operators %}
+              <option value="{{ op.id }}">{{ op.get_full_name|default:op.username }} (Equipment Operator)</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Deployment Remarks / Notes</label>
+            <input type="text" name="remarks" class="form-control" placeholder="Optional dispatch notes">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="confirmReleaseBtn">Confirm Release</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- RETURN MODAL -->
+<div class="modal modal-blur fade" id="returnModal" tabindex="-1">
+  <div class="modal-dialog modal-md modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Return & Post-Rental Inspection</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form id="returnForm">
+        {% csrf_token %}
+        <div class="modal-body">
+          <div class="p-2 bg-surface-secondary rounded mb-3">
+            <div class="fw-bold" id="returnEquipmentName"></div>
+            <div class="text-muted small">Receiving inspection & engine utilization logging</div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label required">Condition Upon Return</label>
+            <textarea name="condition_after" class="form-control" rows="2" placeholder="Describe machinery physical state after deployment" required>Cleaned, normal wear-and-tear, operational.</textarea>
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label">Fleet Condition Rating</label>
+              <select name="equipment_condition" class="form-select">
+                <option value="Good" selected>Good Condition</option>
+                <option value="Excellent">Excellent</option>
+                <option value="Fair">Fair (Slight Wear)</option>
+                <option value="Needs Repair">Needs Repair (Mark for Servicing)</option>
+              </select>
+            </div>
+            <div class="col-6">
+              <label class="form-label">Total Engine Hours</label>
+              <input type="number" step="0.1" name="operating_hours" class="form-control" placeholder="e.g. 16.5" value="8.0">
+            </div>
+            <div class="col-6">
+              <label class="form-label">Total Fuel Used (Liters)</label>
+              <input type="number" step="0.1" name="fuel_used_liters" class="form-control" placeholder="e.g. 45.0" value="30.0">
+            </div>
+            <div class="col-6">
+              <label class="form-label">Work Completed</label>
+              <input type="text" name="work_description" class="form-control" placeholder="e.g. Site plowing completed">
+            </div>
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Damage / Return Notes</label>
+            <input type="text" name="remarks" class="form-control" placeholder="Any defects, scratches, or missing attachments">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-success" id="confirmReturnBtn">Confirm Return</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- LOG DAILY HOURS MODAL -->
+<div class="modal modal-blur fade" id="logHoursModal" tabindex="-1">
+  <div class="modal-dialog modal-md modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Log Daily Engine Hours & Fuel</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form id="logHoursForm">
+        {% csrf_token %}
+        <input type="hidden" name="assignment_id" id="log_assignment_id">
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label required">Date of Operation</label>
+              <input type="date" name="usage_date" class="form-control" value="{% now 'Y-m-d' %}" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label required">Operating Hours</label>
+              <input type="number" step="0.1" name="operating_hours" class="form-control" placeholder="e.g. 6.5" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Meter Reading Start</label>
+              <input type="number" step="0.1" name="meter_start" class="form-control" placeholder="e.g. 1240.0">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Meter Reading End</label>
+              <input type="number" step="0.1" name="meter_end" class="form-control" placeholder="e.g. 1246.5">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Fuel Consumed (Liters)</label>
+              <input type="number" step="0.1" name="fuel_used_liters" class="form-control" placeholder="e.g. 32.5">
+            </div>
+            <div class="col-12">
+              <label class="form-label required">Work Scope / Accomplishment</label>
+              <textarea name="work_description" class="form-control" rows="2" placeholder="e.g. Excavated 85 meters of drainage ditch along municipal road" required></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="saveLogBtn">Save Daily Log</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+  let releaseId = null;
+  const releaseModalEl = document.getElementById('releaseModal');
+  const releaseForm = document.getElementById('releaseForm');
+
+  releaseModalEl.addEventListener('show.bs.modal', function(e) {
+    const btn = e.relatedTarget;
+    releaseId = btn.getAttribute('data-id');
+    document.getElementById('releaseEquipmentName').textContent = btn.getAttribute('data-equipment');
+  });
+
+  releaseForm.addEventListener('submit', function(e) {
+    e.preventDefault();
+    if (!releaseId) return;
+    const fd = new FormData(releaseForm);
+
+    fetch('/rentals/deployments/' + releaseId + '/release/', {
+      method: 'POST',
+      headers: { 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value },
+      body: fd
+    })
+    .then(r => r.json())
+    .then(d => {
+      if (d.error) alert(d.error);
+      else window.location.reload();
+    });
+  });
+
+  let returnId = null;
+  const returnModalEl = document.getElementById('returnModal');
+  const returnForm = document.getElementById('returnForm');
+
+  returnModalEl.addEventListener('show.bs.modal', function(e) {
+    const btn = e.relatedTarget;
+    returnId = btn.getAttribute('data-id');
+    document.getElementById('returnEquipmentName').textContent = btn.getAttribute('data-equipment');
+  });
+
+  returnForm.addEventListener('submit', function(e) {
+    e.preventDefault();
+    if (!returnId) return;
+    const fd = new FormData(returnForm);
+
+    fetch('/rentals/deployments/' + returnId + '/return/', {
+      method: 'POST',
+      headers: { 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value },
+      body: fd
+    })
+    .then(r => r.json())
+    .then(d => {
+      if (d.error) alert(d.error);
+      else window.location.reload();
+    });
+  });
+
+  const logModalEl = document.getElementById('logHoursModal');
+  const logForm = document.getElementById('logHoursForm');
+
+  logModalEl.addEventListener('show.bs.modal', function(e) {
+    const btn = e.relatedTarget;
+    document.getElementById('log_assignment_id').value = btn.getAttribute('data-id');
+  });
+
+  logForm.addEventListener('submit', function(e) {
+    e.preventDefault();
+    const fd = new FormData(logForm);
+
+    fetch("{% url 'rentals:utilization_log_save_ajax' %}", {
+      method: 'POST',
+      headers: { 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value },
+      body: fd
+    })
+    .then(r => r.json())
+    .then(d => {
+      if (d.error) alert(d.error);
+      else window.location.reload();
+    });
+  });
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,576 @@
+{% extends "theme/base.html" %}
+{% block content %}
+<div class="container-xl">
+
+  <!-- TOP WELCOME BANNER -->
+  <div class="page-header d-print-none mb-3">
+    <div class="row align-items-center">
+      <div class="col">
+        <div class="page-pretitle text-uppercase fw-bold text-primary">Municipal Engineering & Motorpool Office</div>
+        <h2 class="page-title d-flex align-items-center gap-2">
+          <span>LGU Machinery & Equipment System</span>
+          <span class="badge bg-primary-lt fs-6">{{ user_role }} View</span>
+        </h2>
+      </div>
+      <div class="col-auto ms-auto d-flex gap-2">
+        {% if is_applicant or is_admin or is_officer %}
+        <a href="{% url 'rentals:apply_rental' %}" class="btn btn-warning text-dark fw-bold">
+          <i class="fas fa-file-signature me-2"></i> Apply for Rental
+        </a>
+        {% endif %}
+        {% if is_officer or is_admin %}
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#equipmentModal">
+          <i class="fas fa-plus me-2"></i> Register Equipment
+        </button>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- DEMO ROLE SWITCHER (Presentation Helper) -->
+  <div class="card bg-surface-secondary border-dashed border-2 mb-4">
+    <div class="card-body py-2 px-3">
+      <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+        <div class="d-flex align-items-center gap-2">
+          <span class="badge bg-purple text-white"><i class="fas fa-users-viewfinder me-1"></i> Demo Switcher</span>
+          <span class="text-muted small">Test capstone workflows as different LGU roles:</span>
+        </div>
+        <div class="btn-group btn-group-sm flex-wrap" role="group">
+          {% for acc in demo_accounts %}
+          <a href="{% url 'rentals:switch_user_demo' acc.username %}"
+             class="btn {% if user.username == acc.username %}btn-primary fw-bold{% else %}btn-outline-secondary{% endif %}"
+             title="{{ acc.desc }}">
+            <i class="fas fa-user-circle me-1"></i> {{ acc.role }}
+          </a>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- METRIC KPI CARDS -->
+  <div class="row row-cards mb-4">
+    <!-- Fleet Count -->
+    <div class="col-sm-6 col-lg-3">
+      <div class="card card-sm shadow-sm h-100">
+        <div class="card-body">
+          <div class="row align-items-center">
+            <div class="col-auto">
+              <span class="avatar avatar-md bg-primary text-white rounded">
+                <i class="fas fa-tractor fs-3"></i>
+              </span>
+            </div>
+            <div class="col">
+              <div class="text-muted small text-uppercase fw-bold">Machinery Fleet</div>
+              <div class="h1 mb-0 fw-bold">{{ total_equipment }}</div>
+            </div>
+          </div>
+          <div class="d-flex gap-2 mt-3 pt-2 border-top small flex-wrap">
+            <span class="badge bg-success-lt"><i class="fas fa-circle-check me-1"></i>{{ available_equipment }} Available</span>
+            <span class="badge bg-primary-lt"><i class="fas fa-gear me-1"></i>{{ in_use_equipment }} In Use</span>
+            <span class="badge bg-danger-lt"><i class="fas fa-wrench me-1"></i>{{ maintenance_equipment }} Repair</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pending Applications -->
+    <div class="col-sm-6 col-lg-3">
+      <div class="card card-sm shadow-sm h-100">
+        <div class="card-body">
+          <div class="row align-items-center">
+            <div class="col-auto">
+              <span class="avatar avatar-md bg-warning text-dark rounded">
+                <i class="fas fa-clock fs-3"></i>
+              </span>
+            </div>
+            <div class="col">
+              <div class="text-muted small text-uppercase fw-bold">Pending Approvals</div>
+              <div class="h1 mb-0 fw-bold">{{ pending_requests }}</div>
+            </div>
+          </div>
+          <div class="d-flex align-items-center justify-content-between mt-3 pt-2 border-top small">
+            <span class="text-muted">{{ approved_requests }} Approved & Scheduled</span>
+            <a href="{% url 'rentals:requests_list' %}" class="link-primary fw-medium">View queue &rarr;</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Total Revenue -->
+    <div class="col-sm-6 col-lg-3">
+      <div class="card card-sm shadow-sm h-100">
+        <div class="card-body">
+          <div class="row align-items-center">
+            <div class="col-auto">
+              <span class="avatar avatar-md bg-success text-white rounded">
+                <i class="fas fa-peso-sign fs-3"></i>
+              </span>
+            </div>
+            <div class="col">
+              <div class="text-muted small text-uppercase fw-bold">Rental Collections</div>
+              <div class="h2 mb-0 fw-bold text-success">₱{{ total_revenue|floatformat:2 }}</div>
+            </div>
+          </div>
+          <div class="d-flex align-items-center justify-content-between mt-3 pt-2 border-top small">
+            <span class="text-muted">Recorded via Treasury OR</span>
+            <a href="{% url 'rentals:payment_list' %}" class="link-success fw-medium">Receipts &rarr;</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Total Operating Hours -->
+    <div class="col-sm-6 col-lg-3">
+      <div class="card card-sm shadow-sm h-100">
+        <div class="card-body">
+          <div class="row align-items-center">
+            <div class="col-auto">
+              <span class="avatar avatar-md bg-azure text-white rounded">
+                <i class="fas fa-gauge-high fs-3"></i>
+              </span>
+            </div>
+            <div class="col">
+              <div class="text-muted small text-uppercase fw-bold">Engine Hours Logged</div>
+              <div class="h2 mb-0 fw-bold">{{ total_hours|floatformat:1 }} <small class="fs-5 text-muted">hrs</small></div>
+            </div>
+          </div>
+          <div class="d-flex align-items-center justify-content-between mt-3 pt-2 border-top small">
+            <span class="text-muted"><i class="fas fa-gas-pump me-1"></i>{{ total_fuel|floatformat:1 }} L Fuel</span>
+            <a href="{% url 'rentals:deployment_list' %}" class="link-primary fw-medium">Tracking &rarr;</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- APPLICANT CUSTOM VIEW -->
+  {% if is_applicant and my_requests %}
+  <div class="card mb-4 border-warning shadow-sm">
+    <div class="card-header bg-warning-lt d-flex align-items-center justify-content-between">
+      <h3 class="card-title text-dark mb-0"><i class="fas fa-clipboard-check me-2"></i>My Active Rental Applications</h3>
+      <a href="{% url 'rentals:my_requests' %}" class="btn btn-sm btn-warning text-dark">View All Applications</a>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-vcenter card-table table-hover">
+        <thead>
+          <tr>
+            <th>Application #</th>
+            <th>Project Site</th>
+            <th>Rental Duration</th>
+            <th>Status</th>
+            <th>Estimated Subtotal</th>
+            <th>Agreement</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in my_requests %}
+          <tr>
+            <td class="fw-bold">REQ-#{% filter stringformat:"04d" %}{{ r.id }}{% endfilter %}</td>
+            <td>{{ r.project_location }}</td>
+            <td class="text-muted">{{ r.requested_start|date:"M j, Y" }} &rarr; {{ r.requested_end|date:"M j, Y" }}</td>
+            <td><span class="badge {{ r.status_badge_class }}">{{ r.status }}</span></td>
+            <td class="fw-semibold">₱{{ r.total_estimated_cost|floatformat:2 }}</td>
+            <td>
+              {% if r.status in 'Approved,Scheduled,Released,Returned,Completed' %}
+              <a href="{% url 'rentals:rental_agreement' r.id %}" target="_blank" class="btn btn-sm btn-outline-primary">
+                <i class="fas fa-print me-1"></i> Agreement
+              </a>
+              {% else %}
+              <span class="text-muted small">Pending approval</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- TWO COLUMN OPERATIONS DASHBOARD -->
+  <div class="row row-cards mb-4">
+
+    <!-- RECENT RENTAL APPLICATIONS -->
+    <div class="col-lg-8">
+      <div class="card shadow-sm h-100">
+        <div class="card-header d-flex align-items-center justify-content-between">
+          <h3 class="card-title mb-0"><i class="fas fa-inbox me-2 text-primary"></i>Recent Rental Applications</h3>
+          <a href="{% url 'rentals:requests_list' %}" class="btn btn-sm btn-ghost-primary">View Queue</a>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-vcenter table-hover card-table text-nowrap">
+            <thead>
+              <tr>
+                <th>REQ #</th>
+                <th>Applicant</th>
+                <th>Purpose & Location</th>
+                <th>Dates</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for req in recent_requests %}
+              <tr>
+                <td class="fw-bold text-muted">#{{ req.id|stringformat:"04d" }}</td>
+                <td>
+                  <div class="fw-semibold">{{ req.applicant.display_name }}</div>
+                  <div class="text-muted small">{{ req.applicant.organization_name|default:req.applicant.applicant_type }}</div>
+                </td>
+                <td>
+                  <div class="text-truncate" style="max-width: 200px;" title="{{ req.purpose }}">{{ req.purpose }}</div>
+                  <div class="text-muted small"><i class="fas fa-map-marker-alt me-1 text-danger"></i>{{ req.project_location }}</div>
+                </td>
+                <td class="text-muted small">
+                  {{ req.requested_start|date:"M j" }} - {{ req.requested_end|date:"M j, Y" }}
+                </td>
+                <td>
+                  <span class="badge {{ req.status_badge_class }}">{{ req.status }}</span>
+                </td>
+                <td>
+                  <div class="d-flex gap-1">
+                    {% if req.status == 'Pending' and is_officer %}
+                    <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#actionRequestModal" data-id="{{ req.id }}" data-action="approve" title="Approve">
+                      <i class="fas fa-check"></i>
+                    </button>
+                    <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#actionRequestModal" data-id="{{ req.id }}" data-action="reject" title="Reject">
+                      <i class="fas fa-times"></i>
+                    </button>
+                    {% endif %}
+                    <a href="{% url 'rentals:rental_agreement' req.id %}" target="_blank" class="btn btn-sm btn-ghost-secondary" title="View Agreement">
+                      <i class="fas fa-file-contract"></i>
+                    </a>
+                  </div>
+                </td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="6" class="text-center py-4 text-muted">No rental applications submitted yet.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- FIELD DEPLOYMENTS & ALERTS -->
+    <div class="col-lg-4">
+      <!-- Active Deployments -->
+      <div class="card shadow-sm mb-3">
+        <div class="card-header d-flex align-items-center justify-content-between">
+          <h3 class="card-title mb-0"><i class="fas fa-truck-pickup me-2 text-warning"></i>Active Deployments</h3>
+          <a href="{% url 'rentals:deployment_list' %}" class="btn btn-sm btn-ghost-primary">View All</a>
+        </div>
+        <div class="list-group list-group-flush">
+          {% for d in recent_deployments %}
+          <div class="list-group-item d-flex align-items-center justify-content-between">
+            <div>
+              <div class="fw-semibold">[{{ d.equipment.equipment_code }}] {{ d.equipment.equipment_name }}</div>
+              <div class="text-muted small">
+                <i class="fas fa-user-tie me-1"></i>{{ d.operator.get_full_name|default:d.operator.username|default:"Unassigned" }}
+              </div>
+            </div>
+            <span class="badge {{ d.status_badge_class }}">{{ d.status }}</span>
+          </div>
+          {% empty %}
+          <div class="list-group-item text-center text-muted py-3">No active field deployments.</div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- Maintenance Alert -->
+      <div class="card shadow-sm">
+        <div class="card-header d-flex align-items-center justify-content-between bg-danger-lt">
+          <h3 class="card-title text-danger mb-0"><i class="fas fa-tools me-2"></i>Maintenance Alerts</h3>
+          <a href="{% url 'rentals:maintenance_list' %}" class="btn btn-sm btn-outline-danger">Schedule</a>
+        </div>
+        <div class="list-group list-group-flush">
+          {% for m in maintenance_alerts %}
+          <div class="list-group-item">
+            <div class="d-flex align-items-center justify-content-between">
+              <span class="fw-bold text-danger">[{{ m.equipment.equipment_code }}] {{ m.maintenance_type }}</span>
+              <span class="badge bg-danger text-white">{{ m.status }}</span>
+            </div>
+            <div class="text-muted small mt-1">{{ m.description|truncatewords:8 }}</div>
+            <div class="text-muted small mt-1">Due: {{ m.scheduled_date|date:"M j, Y" }} (Cost: ₱{{ m.cost|floatformat:2 }})</div>
+          </div>
+          {% empty %}
+          <div class="list-group-item text-center text-muted py-3">All equipment in good condition.</div>
+          {% endfor %}
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- EQUIPMENT CATEGORIES SUMMARY -->
+  <div class="card shadow-sm mb-4">
+    <div class="card-header">
+      <h3 class="card-title mb-0"><i class="fas fa-layer-group me-2 text-indigo"></i>Fleet Inventory by Classification</h3>
+    </div>
+    <div class="card-body">
+      <div class="row g-3">
+        {% for cat in categories %}
+        <div class="col-md-3">
+          <div class="p-3 rounded-3 bg-surface-secondary border">
+            <div class="d-flex align-items-center justify-content-between">
+              <span class="fw-bold fs-4">{{ cat.category_name }}</span>
+              <span class="badge bg-primary text-white">{{ cat.eq_count }} units</span>
+            </div>
+            <div class="text-muted small mt-2">{{ cat.description|default:"Municipal equipment category" }}</div>
+            <a href="{% url 'rentals:equipment_list' %}?category={{ cat.id }}" class="btn btn-sm btn-outline-secondary w-100 mt-3">
+              Browse Category &rarr;
+            </a>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- REGISTER / EDIT EQUIPMENT MODAL -->
+<div class="modal modal-blur fade" id="equipmentModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="equipmentModalTitle">Register Government Machinery</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form id="equipmentForm">
+        {% csrf_token %}
+        <input type="hidden" name="id" id="eq_id">
+        <div class="modal-body">
+          <div id="equipmentFormError" class="alert alert-danger d-none"></div>
+          <div class="row g-3">
+            <div class="col-md-4">
+              <label class="form-label required">Equipment Code</label>
+              <input type="text" name="equipment_code" id="eq_code" class="form-control" placeholder="e.g. DT-003, BH-002" required>
+            </div>
+            <div class="col-md-8">
+              <label class="form-label required">Equipment Name</label>
+              <input type="text" name="equipment_name" id="eq_name" class="form-control" placeholder="e.g. 10-Wheeler Heavy Dump Truck" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label required">Category</label>
+              <select name="category_id" id="eq_category" class="form-select" required>
+                <option value="">Select Category...</option>
+                {% for cat in categories %}
+                <option value="{{ cat.id }}">{{ cat.category_name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Brand</label>
+              <input type="text" name="brand" id="eq_brand" class="form-control" placeholder="e.g. Isuzu, CAT, Kubota">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Model</label>
+              <input type="text" name="model" id="eq_model" class="form-control" placeholder="e.g. 500 Series, 428F2">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Plate / Conduction Number</label>
+              <input type="text" name="plate_number" id="eq_plate" class="form-control" placeholder="e.g. SAB-1026">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Serial Number / Chassis</label>
+              <input type="text" name="serial_number" id="eq_serial" class="form-control" placeholder="e.g. ISZ-882910">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Standard Rental Rate (PHP)</label>
+              <input type="number" step="0.01" name="rate_amount" id="eq_rate" class="form-control" placeholder="e.g. 5500.00">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Rate Unit</label>
+              <select name="rate_unit" id="eq_unit" class="form-select">
+                <option value="Day" selected>Per Day (8 Hours)</option>
+                <option value="Hour">Per Operating Hour</option>
+                <option value="Month">Per Month</option>
+                <option value="Project">Per Project Basis</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Condition Status</label>
+              <select name="condition_status" id="eq_condition" class="form-select">
+                <option value="Excellent">Excellent</option>
+                <option value="Good" selected>Good</option>
+                <option value="Fair">Fair</option>
+                <option value="Needs Repair">Needs Repair</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Availability Status</label>
+              <select name="availability_status" id="eq_availability" class="form-select">
+                <option value="Available" selected>Available</option>
+                <option value="Reserved">Reserved</option>
+                <option value="In Use">In Use</option>
+                <option value="Under Maintenance">Under Maintenance</option>
+                <option value="Out of Service">Out of Service</option>
+              </select>
+            </div>
+            <div class="col-12">
+              <label class="form-label">Depot / Current Location</label>
+              <input type="text" name="current_location" id="eq_location" class="form-control" placeholder="e.g. LGU Motorpool Bay 3, Poblacion">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="eqSubmitBtn">Save Machinery</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- APPROVE / REJECT MODAL -->
+<div class="modal modal-blur fade" id="actionRequestModal" tabindex="-1">
+  <div class="modal-dialog modal-md modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="actionModalTitle">Review Rental Application</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form id="actionRequestForm">
+        {% csrf_token %}
+        <input type="hidden" name="action" id="action_type">
+        <div class="modal-body">
+          <div id="actionModalError" class="alert alert-danger d-none"></div>
+          <p id="actionModalPrompt" class="mb-3"></p>
+
+          <div id="operatorFieldWrap" class="mb-3 d-none">
+            <label class="form-label">Assign Equipment Operator (Optional)</label>
+            <select name="operator_id" class="form-select">
+              <option value="">-- No operator assigned (Client provides authorized driver) --</option>
+              {% for op in demo_accounts %}
+              {% if 'Operator' in op.role %}
+              <option value="16">{{ op.desc }} (Danilo Cruz)</option>
+              {% endif %}
+              {% endfor %}
+            </select>
+          </div>
+
+          <div id="rejectionFieldWrap" class="mb-3 d-none">
+            <label class="form-label required">Reason for Rejection</label>
+            <textarea name="rejection_reason" id="rejection_reason" class="form-control" rows="3" placeholder="State reason according to municipal rental policy (e.g. scheduling conflict, incomplete documents)"></textarea>
+          </div>
+
+          <div class="mb-2">
+            <label class="form-label">Administrative Remarks</label>
+            <input type="text" name="remarks" class="form-control" placeholder="Notes for official transaction record">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn" id="actionSubmitBtn">Confirm</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+  // Equipment save AJAX
+  const eqForm = document.getElementById('equipmentForm');
+  const eqError = document.getElementById('equipmentFormError');
+  const eqSubmitBtn = document.getElementById('eqSubmitBtn');
+
+  if (eqForm) {
+    eqForm.addEventListener('submit', function(e) {
+      e.preventDefault();
+      eqError.classList.add('d-none');
+      eqSubmitBtn.disabled = true;
+
+      const fd = new FormData(eqForm);
+      fetch("{% url 'rentals:equipment_save_ajax' %}", {
+        method: 'POST',
+        headers: { 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value },
+        body: fd
+      })
+      .then(r => r.json())
+      .then(d => {
+        if (d.error) {
+          eqError.textContent = d.error;
+          eqError.classList.remove('d-none');
+        } else {
+          window.location.reload();
+        }
+      })
+      .catch(() => {
+        eqError.textContent = 'Server communication error.';
+        eqError.classList.remove('d-none');
+      })
+      .finally(() => { eqSubmitBtn.disabled = false; });
+    });
+  }
+
+  // Action Request Modal (Approve / Reject)
+  const actionModalEl = document.getElementById('actionRequestModal');
+  const actionForm = document.getElementById('actionRequestForm');
+  let currentRequestId = null;
+
+  if (actionModalEl) {
+    actionModalEl.addEventListener('show.bs.modal', function(event) {
+      const btn = event.relatedTarget;
+      currentRequestId = btn.getAttribute('data-id');
+      const action = btn.getAttribute('data-action');
+
+      document.getElementById('action_type').value = action;
+      document.getElementById('actionModalError').classList.add('d-none');
+      actionForm.reset();
+
+      const title = document.getElementById('actionModalTitle');
+      const prompt = document.getElementById('actionModalPrompt');
+      const opWrap = document.getElementById('operatorFieldWrap');
+      const rejWrap = document.getElementById('rejectionFieldWrap');
+      const submitBtn = document.getElementById('actionSubmitBtn');
+
+      if (action === 'approve') {
+        title.textContent = 'Approve Rental Application #' + currentRequestId;
+        prompt.textContent = 'Approving this request will reserve the equipment and schedule deployment.';
+        opWrap.classList.remove('d-none');
+        rejWrap.classList.add('d-none');
+        submitBtn.className = 'btn btn-success';
+        submitBtn.textContent = 'Approve Application';
+      } else {
+        title.textContent = 'Reject Rental Application #' + currentRequestId;
+        prompt.textContent = 'Please record the official reason for disapproving this application.';
+        opWrap.classList.add('d-none');
+        rejWrap.classList.remove('d-none');
+        submitBtn.className = 'btn btn-danger';
+        submitBtn.textContent = 'Reject Application';
+      }
+    });
+
+    actionForm.addEventListener('submit', function(e) {
+      e.preventDefault();
+      if (!currentRequestId) return;
+
+      const fd = new FormData(actionForm);
+      fetch('/rentals/requests/' + currentRequestId + '/action/', {
+        method: 'POST',
+        headers: { 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value },
+        body: fd
+      })
+      .then(r => r.json())
+      .then(d => {
+        if (d.error) {
+          const errBox = document.getElementById('actionModalError');
+          errBox.textContent = d.error;
+          errBox.classList.remove('d-none');
+        } else {
+          window.location.reload();
+        }
+      });
+    });
+  }
+})();
+</script>
+{% endblock %}

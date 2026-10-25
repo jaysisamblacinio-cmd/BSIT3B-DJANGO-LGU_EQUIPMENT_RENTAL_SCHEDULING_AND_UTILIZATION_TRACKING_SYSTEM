@@ -1,0 +1,129 @@
+{% extends "theme/base.html" %}
+{% block content %}
+<div class="container-xl">
+
+  <div class="page-header d-print-none mb-3">
+    <div class="row align-items-center">
+      <div class="col">
+        <div class="page-pretitle text-uppercase fw-bold text-primary">Applicant Portal</div>
+        <h2 class="page-title"><i class="fas fa-clipboard-list me-2 text-primary"></i>My Rental Applications & History</h2>
+      </div>
+      <div class="col-auto ms-auto">
+        <a href="{% url 'rentals:apply_rental' %}" class="btn btn-warning text-dark fw-bold">
+          <i class="fas fa-plus me-1"></i> New Rental Request
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="row row-cards">
+    {% for req in requests %}
+    <div class="col-12">
+      <div class="card shadow-sm mb-3">
+        <div class="card-header d-flex align-items-center justify-content-between bg-surface-secondary">
+          <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-dark fs-6">REQ-#{% filter stringformat:"04d" %}{{ req.id }}{% endfilter %}</span>
+            <span class="text-muted small">Submitted on {{ req.created_at|date:"M j, Y - g:i A" }}</span>
+          </div>
+          <span class="badge {{ req.status_badge_class }} fs-6 px-3 py-1">{{ req.status }}</span>
+        </div>
+
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-md-8">
+              <h4 class="mb-1 text-primary">{{ req.purpose }}</h4>
+              <div class="text-muted small mb-3">
+                <i class="fas fa-map-marker-alt text-danger me-1"></i> Deployment Location: <strong>{{ req.project_location }}</strong>
+              </div>
+
+              <!-- Requested machinery items -->
+              <div class="p-2 rounded bg-surface-secondary mb-3">
+                <div class="fw-bold small text-muted text-uppercase mb-1">Requested Machinery:</div>
+                <div class="d-flex flex-wrap gap-2">
+                  {% for item in req.items.all %}
+                  <span class="badge bg-white text-dark border p-2">
+                    <i class="fas fa-tractor text-primary me-1"></i>
+                    <strong>{{ item.equipment.equipment_code }}</strong> &bull; {{ item.equipment.equipment_name }}
+                    (₱{{ item.subtotal|floatformat:2 }})
+                  </span>
+                  {% endfor %}
+                </div>
+              </div>
+
+              <!-- Rejection notice if applicable -->
+              {% if req.status == 'Rejected' and req.rejection_reason %}
+              <div class="alert alert-danger mb-0 py-2">
+                <i class="fas fa-triangle-exclamation me-1"></i> <strong>Disapproval Notice:</strong> {{ req.rejection_reason }}
+              </div>
+              {% endif %}
+
+              <!-- Review remarks if approved -->
+              {% if req.review_remarks and req.status != 'Rejected' %}
+              <div class="text-muted small">
+                <i class="fas fa-comment-dots text-info me-1"></i> Office Note: {{ req.review_remarks }}
+              </div>
+              {% endif %}
+            </div>
+
+            <div class="col-md-4 border-start-md">
+              <div class="p-2">
+                <div class="text-muted small">Rental Schedule:</div>
+                <div class="fw-semibold">{{ req.requested_start|date:"M j, Y g:i A" }}</div>
+                <div class="text-muted small text-center my-1">&darr; to</div>
+                <div class="fw-semibold">{{ req.requested_end|date:"M j, Y g:i A" }}</div>
+
+                <div class="border-top mt-3 pt-2">
+                  <div class="d-flex justify-content-between small">
+                    <span class="text-muted">Estimated Total:</span>
+                    <span class="fw-bold">₱{{ req.total_estimated_cost|floatformat:2 }}</span>
+                  </div>
+                  <div class="d-flex justify-content-between small">
+                    <span class="text-muted">Total Paid:</span>
+                    <span class="text-success fw-bold">₱{{ req.total_paid|floatformat:2 }}</span>
+                  </div>
+                  <div class="d-flex justify-content-between small mt-1">
+                    <span class="text-muted">Balance Due:</span>
+                    <span class="text-danger fw-bold">₱{{ req.balance_due|floatformat:2 }}</span>
+                  </div>
+                </div>
+
+                <!-- Printable Agreement Button -->
+                {% if req.status in 'Approved,Scheduled,Released,Returned,Completed' %}
+                <a href="{% url 'rentals:rental_agreement' req.id %}" target="_blank" class="btn btn-outline-primary btn-sm w-100 mt-3">
+                  <i class="fas fa-print me-1"></i> Printable Agreement
+                </a>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% empty %}
+    <div class="col-12">
+      <div class="empty py-5 text-center">
+        <div class="empty-icon text-muted mb-3"><i class="fas fa-file-signature fa-3x"></i></div>
+        <p class="empty-title fs-3">No Rental Applications</p>
+        <p class="empty-subtitle text-muted">You haven't submitted any equipment rental requests yet.</p>
+        <a href="{% url 'rentals:apply_rental' %}" class="btn btn-warning text-dark fw-bold mt-2">
+          <i class="fas fa-plus me-1"></i> Apply for Equipment Rental
+        </a>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  {% if requests.paginator.num_pages > 1 %}
+  <div class="d-flex justify-content-center mt-3">
+    <ul class="pagination">
+      {% for num in requests.paginator.page_range %}
+      <li class="page-item {% if requests.number == num %}active{% endif %}">
+        <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}
