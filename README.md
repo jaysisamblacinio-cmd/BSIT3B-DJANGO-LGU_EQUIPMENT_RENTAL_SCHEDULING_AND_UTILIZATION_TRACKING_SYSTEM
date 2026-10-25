@@ -1,0 +1,7 @@
+LGU EQUIPMENT RENTAL SCHEDULING AND UTILIZATION TRACKING SYSTEM:
+
+John Carlo Samblacinio
+
+Jose Emmanuel Servando
+
+Jorem Tabungcay
