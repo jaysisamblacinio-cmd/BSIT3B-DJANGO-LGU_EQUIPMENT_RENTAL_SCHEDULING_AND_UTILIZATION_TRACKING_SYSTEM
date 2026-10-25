@@ -125,7 +125,7 @@
                   <tbody>
                     {% for res in reservations %}
                     <tr>
-                      <td class="fw-bold">RES-#{% filter stringformat:"04d" %}{{ res.id }}{% endfilter %}</td>
+                      <td class="fw-bold">RES-#{{ res.id|stringformat:"04d" }}</td>
                       <td>{{ res.request.applicant.display_name|default:"LGU Project" }}</td>
                       <td class="text-muted small">
                         {{ res.scheduled_start|date:"M j, Y" }} &rarr; {{ res.scheduled_end|date:"M j, Y" }}

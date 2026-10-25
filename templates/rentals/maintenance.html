@@ -68,7 +68,7 @@
         <tbody>
           {% for m in records %}
           <tr>
-            <td class="fw-bold">MAINT-#{% filter stringformat:"04d" %}{{ m.id }}{% endfilter %}</td>
+            <td class="fw-bold">MAINT-#{{ m.id|stringformat:"04d" }}</td>
             <td>
               <div class="fw-bold">[{{ m.equipment.equipment_code }}] {{ m.equipment.equipment_name }}</div>
               <div class="text-muted small">{{ m.equipment.category.category_name }}</div>

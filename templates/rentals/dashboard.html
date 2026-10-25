@@ -166,7 +166,7 @@
         <tbody>
           {% for r in my_requests %}
           <tr>
-            <td class="fw-bold">REQ-#{% filter stringformat:"04d" %}{{ r.id }}{% endfilter %}</td>
+            <td class="fw-bold">REQ-#{{ r.id|stringformat:"04d" }}</td>
             <td>{{ r.project_location }}</td>
             <td class="text-muted">{{ r.requested_start|date:"M j, Y" }} &rarr; {{ r.requested_end|date:"M j, Y" }}</td>
             <td><span class="badge {{ r.status_badge_class }}">{{ r.status }}</span></td>

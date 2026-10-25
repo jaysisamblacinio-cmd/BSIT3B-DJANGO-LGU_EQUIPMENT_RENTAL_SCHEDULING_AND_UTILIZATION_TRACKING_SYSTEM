@@ -1,3 +1,4 @@
+{% load humanize %}
 <!doctype html>
 <html lang="en">
 <head>
@@ -111,7 +112,7 @@
       </tr>
       <tr>
         <td style="color: #64748b;">Application Ref:</td>
-        <td><strong>REQ-#{% filter stringformat:"04d" %}{{ req.id }}{% endfilter %}</strong> ({{ req.purpose|truncatewords:8 }})</td>
+        <td><strong>REQ-#{{ req.id|stringformat:"04d" }}</strong> ({{ req.purpose|truncatewords:8 }})</td>
       </tr>
       <tr>
         <td style="color: #64748b;">Payment For:</td>
@@ -130,7 +131,7 @@
         <span style="font-size: 9pt; color: #166534; font-weight: 600;">AMOUNT COLLECTED:</span>
       </div>
       <div>
-        <span style="font-size: 17pt; font-weight: 800; color: #15803d;">₱{{ payment.amount|floatformat:2 }}</span>
+        <span style="font-size: 17pt; font-weight: 800; color: #15803d;">₱{{ payment.amount|floatformat:2|intcomma }}</span>
       </div>
     </div>
 

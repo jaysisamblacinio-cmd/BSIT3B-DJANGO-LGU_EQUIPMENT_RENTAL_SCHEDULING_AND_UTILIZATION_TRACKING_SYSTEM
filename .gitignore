@@ -1,0 +1,32 @@
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
+
+# Pytest / Cache
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Local database
+*.sqlite3
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Static collected / Media uploads
+media/

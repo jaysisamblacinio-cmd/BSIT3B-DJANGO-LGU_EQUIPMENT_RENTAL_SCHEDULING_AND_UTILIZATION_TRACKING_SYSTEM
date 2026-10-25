@@ -22,7 +22,7 @@
       <div class="card shadow-sm mb-3">
         <div class="card-header d-flex align-items-center justify-content-between bg-surface-secondary">
           <div class="d-flex align-items-center gap-2">
-            <span class="badge bg-dark fs-6">REQ-#{% filter stringformat:"04d" %}{{ req.id }}{% endfilter %}</span>
+            <span class="badge bg-dark fs-6">REQ-#{{ req.id|stringformat:"04d" }}</span>
             <span class="text-muted small">Submitted on {{ req.created_at|date:"M j, Y - g:i A" }}</span>
           </div>
           <span class="badge {{ req.status_badge_class }} fs-6 px-3 py-1">{{ req.status }}</span>

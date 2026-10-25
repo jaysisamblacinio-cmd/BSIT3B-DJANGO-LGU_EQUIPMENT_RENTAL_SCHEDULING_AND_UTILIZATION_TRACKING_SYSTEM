@@ -141,7 +141,7 @@
           <div style="font-size: 11pt; font-weight: 700;">PROVINCE OF ISABELA &bull; MUNICIPAL GOVERNMENT</div>
           <div style="font-size: 9.5pt; color: #64748b;">Office of the Municipal Engineer & Motorpool Division</div>
           <div class="doc-title">Government Machinery & Equipment Rental Agreement</div>
-          <div style="font-size: 9pt; color: #64748b;">Contract Ref No: LGU-EQ-REQ-{% filter stringformat:"04d" %}{{ req.id }}{% endfilter %} &bull; Date: {{ today|date:"F j, Y" }}</div>
+          <div style="font-size: 9pt; color: #64748b;">Contract Ref No: LGU-EQ-REQ-{{ req.id|stringformat:"04d" }} &bull; Date: {{ today|date:"F j, Y" }}</div>
         </td>
         <td style="width: 70px; text-align: center;">
           <i class="fas fa-truck-monster" style="font-size: 42px; color: #f59e0b;"></i>
