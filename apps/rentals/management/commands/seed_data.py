@@ -35,6 +35,7 @@ class Command(BaseCommand):
 
         # 2. Demo User Accounts
         demo_users = [
+            ('ADMIN12', 'System', 'Admin', 'admin12@lgu.gov.ph', 'Admin', True, True),
             ('glenn', 'Glenn', 'Administrator', 'admin@lgu.gov.ph', 'Admin', True, True),
             ('officer', 'Engr. Roberto', 'Mercado', 'officer@lgu.gov.ph', 'Equipment Officer', False, True),
             ('finance', 'Ma. Lourdes', 'Santos', 'treasury@lgu.gov.ph', 'Finance Officer', False, False),

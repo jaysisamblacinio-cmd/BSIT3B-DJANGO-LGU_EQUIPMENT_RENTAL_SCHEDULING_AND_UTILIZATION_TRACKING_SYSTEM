@@ -37,6 +37,7 @@ def lgu_context(request):
         'unread_notifications_count': unread_count,
         'pending_requests_count': pending_count,
         'demo_accounts': [
+            {'username': 'ADMIN12', 'role': 'Admin', 'desc': 'System Administrator'},
             {'username': 'glenn', 'role': 'Admin', 'desc': 'LGU Administrator'},
             {'username': 'officer', 'role': 'Equipment Officer', 'desc': 'Machinery & Review'},
             {'username': 'finance', 'role': 'Finance Officer', 'desc': 'Payments & ORs'},

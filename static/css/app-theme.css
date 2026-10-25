@@ -663,3 +663,7 @@ html {
     font-size: 1.3rem;
   }
 }
+
+.min-w-0 {
+  min-width: 0 !important;
+}
