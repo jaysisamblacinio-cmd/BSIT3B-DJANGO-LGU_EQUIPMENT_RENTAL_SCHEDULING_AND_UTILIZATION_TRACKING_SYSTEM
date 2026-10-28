@@ -24,7 +24,7 @@
       </div>
 
         <!-- RIGHT -->
-        <!-- <div class="col-auto">
+        <div class="col-auto">
         <div class="btn-list">
           <button type="button"
              class="btn btn-primary"
@@ -34,7 +34,7 @@
             <i class="ti ti-plus me-1"></i> Add User
           </button>
         </div>
-      </div> -->
+      </div>
 
     </div>
   </div>
@@ -115,19 +115,13 @@
                             <span class="badge bg-danger-lt text-danger">Inactive</span>
                             {% endif %}
                         </td>
-                        <td>
-                            {% if u.is_superuser %}
-                            <span class="badge bg-purple-lt text-purple">Superuser</span>
-                            {% elif u.is_staff %}
-                            <span class="badge bg-warning-lt text-warning">Staff</span>
-                            {% else %}
-                            <span class="badge bg-secondary-lt text-secondary">User</span>
-                            {% endif %}
-                        </td>
+                        <td><span class="badge bg-secondary-lt text-secondary">{{ u.management_role }}</span></td>
                         <td>
                             <div class="d-flex gap-1">
-                                <a href="#"
-                                   class="btn btn-ghost-secondary btn-icon btn-sm"
+                                {% if not u.is_superuser and u.management_role in managed_roles %}
+                                {% with applicant=u.applicant_profile.first %}
+                                <button type="button"
+                                   class="btn btn-sm btn-outline-primary"
                                    data-bs-toggle="modal"
                                    data-bs-target="#editUserModal"
                                    data-mode="edit"
@@ -137,19 +131,27 @@
                                    data-last="{{ u.last_name }}"
                                    data-email="{{ u.email }}"
                                    data-active="{{ u.is_active|yesno:'true,false' }}"
-                                   data-staff="{{ u.is_staff|yesno:'true,false' }}"
-                                   title="Edit">
-                                    <i class="ti ti-pencil text-primary"></i>
-                                </a>
-                                <a href="#"
-                                   class="btn btn-ghost-secondary btn-icon btn-sm"
+                                   data-role="{{ u.management_role }}"
+                                   data-applicant-type="{{ applicant.applicant_type|default:'Farmer' }}"
+                                   data-organization="{{ applicant.organization_name|default:'' }}"
+                                   data-address="{{ applicant.address|default:'' }}"
+                                   data-id-type="{{ applicant.valid_id_type|default:'' }}"
+                                   data-id-number="{{ applicant.valid_id_number|default:'' }}"
+                                   data-tin="{{ applicant.tin_number|default:'' }}">
+                                    <i class="ti ti-pencil me-1"></i>Edit
+                                </button>
+                                {% endwith %}
+                                {% if u.management_role in managed_roles and u.is_active %}
+                                <button type="button"
+                                   class="btn btn-sm btn-outline-danger"
                                    data-bs-toggle="modal"
                                    data-bs-target="#deleteUserModal"
                                    data-id="{{ u.id }}"
-                                   data-name="{{ u.username }}"
-                                   title="Delete">
-                                    <i class="ti ti-trash text-danger"></i>
-                                </a>
+                                   data-name="{{ u.username }}">
+                                    <i class="ti ti-trash me-1"></i>Remove
+                                </button>
+                                {% endif %}
+                                {% endif %}
                             </div>
                         </td>
                     </tr>
@@ -239,18 +241,53 @@
                             <label class="form-label">Email</label>
                             <input type="email" name="email" id="edit_email" class="form-control">
                         </div>
+                        <div class="col-12">
+                            <label class="form-label" for="edit_role">Account type</label>
+                            <select name="role" id="edit_role" class="form-select" required>
+                                <option value="Farmer">Farmer</option>
+                                <option value="Equipment Officer">Equipment Officer</option>
+                                <option value="Finance Officer">Finance Officer</option>
+                                <option value="Equipment Operator">Equipment Operator</option>
+                            </select>
+                        </div>
+                        <div id="applicantFields" class="row g-3 m-0">
+                            <div class="col-6">
+                                <label class="form-label" for="edit_applicant_type">Applicant type</label>
+                                <select name="applicant_type" id="edit_applicant_type" class="form-select">
+                                    <option value="Farmer">Farmer</option>
+                                    <option value="Contractor">Contractor</option>
+                                    <option value="Cooperative">Cooperative</option>
+                                    <option value="Resident">Resident</option>
+                                    <option value="Government Project">Government Project</option>
+                                    <option value="Individual">Individual</option>
+                                </select>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label" for="edit_organization">Organization</label>
+                                <input type="text" name="organization_name" id="edit_organization" class="form-control">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label" for="edit_address">Address</label>
+                                <input type="text" name="address" id="edit_address" class="form-control">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label" for="edit_id_type">Valid ID type</label>
+                                <input type="text" name="valid_id_type" id="edit_id_type" class="form-control">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label" for="edit_id_number">Valid ID number</label>
+                                <input type="text" name="valid_id_number" id="edit_id_number" class="form-control">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label" for="edit_tin">TIN number</label>
+                                <input type="text" name="tin_number" id="edit_tin" class="form-control">
+                            </div>
+                        </div>
                         <div class="col-6">
                             <label class="form-label">Status</label>
                             <div class="form-check form-switch mt-1">
                                 <input class="form-check-input" type="checkbox" name="is_active" id="edit_is_active">
                                 <label class="form-check-label" for="edit_is_active">Active</label>
-                            </div>
-                        </div>
-                        <div class="col-6">
-                            <label class="form-label">Role</label>
-                            <div class="form-check form-switch mt-1">
-                                <input class="form-check-input" type="checkbox" name="is_staff" id="edit_is_staff">
-                                <label class="form-check-label" for="edit_is_staff">Staff</label>
                             </div>
                         </div>
                     </div>
@@ -269,15 +306,15 @@
     <div class="modal-dialog modal-sm modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title text-danger">Delete User</h5>
+                <h5 class="modal-title text-danger">Remove Account</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <p class="text-muted">Are you sure you want to delete <strong id="deleteUserName"></strong>? This cannot be undone.</p>
+                <p class="text-muted">Disable sign-in for <strong id="deleteUserName"></strong>? The account and its rental history will be preserved.</p>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-ghost-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Delete</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Remove Account</button>
             </div>
         </div>
     </div>
@@ -291,11 +328,18 @@
     const editModal      = document.getElementById('editUserModal');
     const editForm        = document.getElementById('editUserForm');
     const editFormError   = document.getElementById('editUserFormError');
-    const passwordWrap    = document.getElementById('edit_password_wrap');
     const passwordInput   = document.getElementById('edit_password');
     const passwordHint    = document.getElementById('edit_password_hint');
     const modalTitle       = document.getElementById('editUserModalTitle');
     const usernameInput   = document.getElementById('edit_username');
+    const roleInput       = document.getElementById('edit_role');
+    const applicantFields = document.getElementById('applicantFields');
+
+    function updateApplicantFields() {
+        applicantFields.classList.toggle('d-none', roleInput.value !== 'Farmer');
+    }
+
+    roleInput.addEventListener('change', updateApplicantFields);
 
     let deleteTargetId = null;
 
@@ -312,13 +356,6 @@
     function clearFormError() {
         editFormError.textContent = '';
         editFormError.classList.add('d-none');
-    }
-
-    function showSuccessAlert(msg) {
-        const box = document.getElementById('userAlert');
-        document.getElementById('userAlertText').textContent = msg;
-        box.classList.remove('d-none');
-        box.classList.add('show');
     }
 
     // Populate edit/create modal on open
@@ -340,14 +377,22 @@
             document.getElementById('edit_last_name').value   = btn.dataset.last;
             document.getElementById('edit_email').value       = btn.dataset.email;
             document.getElementById('edit_is_active').checked = btn.dataset.active === 'true';
-            document.getElementById('edit_is_staff').checked  = btn.dataset.staff === 'true';
+            roleInput.value = btn.dataset.role;
+            document.getElementById('edit_applicant_type').value = btn.dataset.applicantType;
+            document.getElementById('edit_organization').value = btn.dataset.organization;
+            document.getElementById('edit_address').value = btn.dataset.address;
+            document.getElementById('edit_id_type').value = btn.dataset.idType;
+            document.getElementById('edit_id_number').value = btn.dataset.idNumber;
+            document.getElementById('edit_tin').value = btn.dataset.tin;
         } else {
             modalTitle.textContent = 'Add User';
             document.getElementById('edit_id').value = '';
             passwordHint.classList.add('d-none');
             passwordInput.required = true;
+            roleInput.value = 'Farmer';
             document.getElementById('edit_is_active').checked = true;
         }
+        updateApplicantFields();
     });
 
     // Submit create/edit form via AJAX
@@ -360,7 +405,6 @@
 
         const formData = new FormData(editForm);
         formData.set('is_active', document.getElementById('edit_is_active').checked ? 'true' : 'false');
-        formData.set('is_staff',  document.getElementById('edit_is_staff').checked ? 'true' : 'false');
 
         fetch(SAVE_URL, {
             method: 'POST',
@@ -410,11 +454,9 @@
             }
             return data;
         })
-        .then((data) => {
+        .then(() => {
             bootstrap.Modal.getInstance(document.getElementById('deleteUserModal')).hide();
-            const row = document.querySelector(`tr[data-row-id="${deleteTargetId}"]`);
-            if (row) row.remove();
-            showSuccessAlert(data.message || 'User deleted successfully.');
+            window.location.reload();
         })
         .catch((err) => {
             alert(err.message);

@@ -68,28 +68,6 @@
             </div>
           </form>
 
-          <!-- QUICK DEMO PREFILL -->
-          <div class="mt-4 pt-3 border-top">
-            <div class="text-muted small fw-bold text-uppercase mb-2 text-center">Capstone Demo Accounts (Password: password123)</div>
-            <div class="d-flex flex-wrap gap-1 justify-content-center">
-              <button type="button" class="btn btn-sm btn-outline-primary demo-fill-btn" data-user="glenn">
-                <i class="fas fa-user-shield me-1"></i> Admin
-              </button>
-              <button type="button" class="btn btn-sm btn-outline-secondary demo-fill-btn" data-user="officer">
-                <i class="fas fa-tractor me-1"></i> Officer
-              </button>
-              <button type="button" class="btn btn-sm btn-outline-success demo-fill-btn" data-user="finance">
-                <i class="fas fa-coins me-1"></i> Finance
-              </button>
-              <button type="button" class="btn btn-sm btn-outline-info demo-fill-btn" data-user="danilo_operator">
-                <i class="fas fa-gas-pump me-1"></i> Operator
-              </button>
-              <button type="button" class="btn btn-sm btn-outline-warning text-dark demo-fill-btn" data-user="farmer_juan">
-                <i class="fas fa-wheat-awn me-1"></i> Farmer
-              </button>
-            </div>
-          </div>
-
         </div>
       </div>
 
@@ -117,14 +95,5 @@
   </script>
   {% endif %}
 
-  <script>
-    document.querySelectorAll('.demo-fill-btn').forEach(btn => {
-      btn.addEventListener('click', function() {
-        document.getElementById('usernameInput').value = this.dataset.user;
-        document.getElementById('passwordInput').value = 'password123';
-        document.getElementById('loginForm').submit();
-      });
-    });
-  </script>
 </body>
 </html>

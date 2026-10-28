@@ -27,26 +27,6 @@
     </div>
   </div>
 
-  <!-- DEMO ROLE SWITCHER (Presentation Helper) -->
-  <div class="card bg-surface-secondary border-dashed border-2 mb-4">
-    <div class="card-body py-2 px-3">
-      <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
-        <div class="d-flex align-items-center gap-2">
-          <span class="badge bg-purple text-white"><i class="fas fa-users-viewfinder me-1"></i> Demo Switcher</span>
-          <span class="text-muted small">Test capstone workflows as different LGU roles:</span>
-        </div>
-        <div class="btn-group btn-group-sm flex-wrap" role="group">
-          {% for acc in demo_accounts %}
-          <a href="{% url 'rentals:switch_user_demo' acc.username %}"
-             class="btn {% if user.username == acc.username %}btn-primary fw-bold{% else %}btn-outline-secondary{% endif %}"
-             title="{{ acc.desc }}">
-            <i class="fas fa-user-circle me-1"></i> {{ acc.role }}
-          </a>
-          {% endfor %}
-        </div>
-      </div>
-    </div>
-  </div>
 
   <!-- METRIC KPI CARDS -->
   <div class="row row-cards mb-4">
@@ -269,7 +249,7 @@
             <div>
               <div class="fw-semibold">[{{ d.equipment.equipment_code }}] {{ d.equipment.equipment_name }}</div>
               <div class="text-muted small">
-                <i class="fas fa-user-tie me-1"></i>{{ d.operator.get_full_name|default:d.operator.username|default:"Unassigned" }}
+                <i class="fas fa-user-tie me-1"></i>{% if d.operator %}{{ d.operator.get_full_name|default:d.operator.username }}{% else %}Unassigned{% endif %}
               </div>
             </div>
             <span class="badge {{ d.status_badge_class }}">{{ d.status }}</span>
@@ -445,10 +425,8 @@
             <label class="form-label">Assign Equipment Operator (Optional)</label>
             <select name="operator_id" class="form-select">
               <option value="">-- No operator assigned (Client provides authorized driver) --</option>
-              {% for op in demo_accounts %}
-              {% if 'Operator' in op.role %}
-              <option value="16">{{ op.desc }} (Danilo Cruz)</option>
-              {% endif %}
+              {% for op in operators %}
+              <option value="{{ op.id }}">{{ op.get_full_name|default:op.username }} (Equipment Operator)</option>
               {% endfor %}
             </select>
           </div>

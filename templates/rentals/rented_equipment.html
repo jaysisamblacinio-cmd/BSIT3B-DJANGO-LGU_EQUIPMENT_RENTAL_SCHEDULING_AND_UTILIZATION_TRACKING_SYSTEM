@@ -1,0 +1,90 @@
+{% extends "theme/base.html" %}
+{% block content %}
+<div class="container-xl">
+  <div class="page-header d-print-none mb-3">
+    <div class="row align-items-center">
+      <div class="col">
+        <div class="page-pretitle text-uppercase fw-bold text-primary">Equipment Operations</div>
+        <h2 class="page-title"><i class="fas fa-truck-ramp-box me-2 text-primary"></i>My Rented Equipment</h2>
+        <div class="text-muted">Approved rentals, active equipment, and completed rental history.</div>
+      </div>
+    </div>
+  </div>
+
+  <form method="get" class="mb-3">
+    <div class="input-group" style="max-width: 560px;">
+      <span class="input-group-text"><i class="fas fa-search"></i></span>
+      <input type="search" name="q" value="{{ query }}" class="form-control"
+             placeholder="Search equipment, applicant, or location">
+      <button type="submit" class="btn btn-primary">Search</button>
+      {% if query %}
+      <a href="{% url 'rentals:rented_equipment' %}" class="btn btn-outline-secondary">Clear</a>
+      {% endif %}
+    </div>
+  </form>
+
+  <div class="card">
+    <div class="card-header">
+      <h3 class="card-title">Rental Equipment Records</h3>
+      <div class="card-actions text-muted">{{ rentals.paginator.count }} record{{ rentals.paginator.count|pluralize }}</div>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-vcenter table-hover card-table">
+        <thead>
+          <tr>
+            <th>Request #</th>
+            <th>Equipment</th>
+            <th>Applicant</th>
+            <th>Rental Schedule</th>
+            <th>Project Location</th>
+            <th>Status</th>
+            <th class="text-end">Estimated Cost</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in rentals %}
+          <tr>
+            <td><a href="{% url 'rentals:rental_agreement' item.request_id %}">REQ-{{ item.request_id|stringformat:"04d" }}</a></td>
+            <td>
+              <div class="fw-semibold">[{{ item.equipment.equipment_code }}] {{ item.equipment.equipment_name }}</div>
+              <div class="text-muted small">{{ item.equipment.category.category_name }} &middot; Qty {{ item.quantity }}</div>
+            </td>
+            <td>
+              <div class="fw-semibold">{{ item.request.applicant.display_name }}</div>
+              {% if item.request.applicant.organization_name %}
+              <div class="text-muted small">{{ item.request.applicant.organization_name }}</div>
+              {% endif %}
+            </td>
+            <td class="text-nowrap">
+              <div>{{ item.request.requested_start|date:"M j, Y H:i" }}</div>
+              <div class="text-muted small">to {{ item.request.requested_end|date:"M j, Y H:i" }}</div>
+            </td>
+            <td>{{ item.request.project_location }}</td>
+            <td><span class="badge {{ item.request.status_badge_class }}">{{ item.request.status }}</span></td>
+            <td class="text-end text-nowrap">₱{{ item.subtotal|default_if_none:0|floatformat:2 }}</td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="7" class="text-center py-5 text-muted">No approved or completed rental equipment records found.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% if rentals.paginator.num_pages > 1 %}
+    <div class="card-footer d-flex align-items-center justify-content-between">
+      <span class="text-muted small">Page {{ rentals.number }} of {{ rentals.paginator.num_pages }}</span>
+      <ul class="pagination m-0">
+        {% if rentals.has_previous %}
+        <li class="page-item"><a class="page-link" href="?page={{ rentals.previous_page_number }}{% if query %}&q={{ query|urlencode }}{% endif %}">Previous</a></li>
+        {% endif %}
+        {% if rentals.has_next %}
+        <li class="page-item"><a class="page-link" href="?page={{ rentals.next_page_number }}{% if query %}&q={{ query|urlencode }}{% endif %}">Next</a></li>
+        {% endif %}
+      </ul>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

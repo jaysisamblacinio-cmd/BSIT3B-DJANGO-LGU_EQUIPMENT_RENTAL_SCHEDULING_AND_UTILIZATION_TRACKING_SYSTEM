@@ -28,8 +28,9 @@ resp = client.get('/register/')
 assert resp.status_code == 200, f"Expected 200 for register, got {resp.status_code}"
 print("Register Page: OK (200)")
 
-# 4. Authenticate as Admin (glenn)
-admin_user = User.objects.get(username='glenn')
+# 4. Authenticate as an existing administrator account.
+admin_user = User.objects.filter(is_superuser=True, is_active=True).first()
+assert admin_user is not None, "Create an active superuser before running this verification script."
 client.force_login(admin_user)
 
 endpoints = [
@@ -67,10 +68,4 @@ for r_type in ['transactions', 'utilization', 'revenue', 'maintenance']:
     assert len(r.content) > 1000, f"Excel file too small: {len(r.content)} bytes"
     print(f"Export {r_type} Excel: OK ({len(r.content)} bytes)")
 
-# 6. Test Demo Role Switcher
-for username in ['officer', 'finance', 'danilo_operator', 'farmer_juan', 'glenn']:
-    r = client.get(f'/rentals/switch-role/{username}/', follow=True)
-    assert r.status_code == 200
-    print(f"Switch to {username}: OK")
-
-print("\nALL 24 ENDPOINTS & WORKFLOWS VALIDATED PERFECTLY!")
+print("\nAll configured endpoint and export checks passed.")

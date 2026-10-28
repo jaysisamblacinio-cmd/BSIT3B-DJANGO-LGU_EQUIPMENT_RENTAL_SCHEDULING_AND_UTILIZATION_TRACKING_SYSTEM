@@ -1,13 +1,14 @@
 import io
+import logging
 from datetime import datetime, timedelta
 from decimal import Decimal
 
 from django.conf import settings
 from django.contrib import messages
-from django.contrib.auth import authenticate, get_user_model, login
+from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
-from django.db import transaction
+from django.db import DatabaseError, transaction
 from django.db.models import Avg, Count, Q, Sum
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -25,6 +26,7 @@ from .models import (
 from .permissions import get_user_role, role_required
 
 User = get_user_model()
+logger = logging.getLogger(__name__)
 
 
 def log_audit(user, action, table_name='', record_id=None, details='', request=None):
@@ -57,8 +59,11 @@ def send_notification(user, title, message):
             title=title,
             message=message,
         )
-    except Exception:
-        pass
+    except DatabaseError:
+        logger.exception(
+            "Could not create in-app notification for user %s",
+            user.pk,
+        )
 
 
 # =====================================================================
@@ -106,9 +111,23 @@ def dashboard_view(request):
     # Category breakdown for charts
     categories = EquipmentCategory.objects.annotate(eq_count=Count('equipment_set'))
 
+    # Equipment operators for the approve-request modal
+    from django.contrib.auth.models import Group as AuthGroup
+    try:
+        op_group = AuthGroup.objects.get(name='Equipment Operator')
+        operators = op_group.user_set.filter(is_active=True).order_by('first_name', 'last_name')
+    except AuthGroup.DoesNotExist:
+        operators = User.objects.none()
+
     context = {
         'page_title': 'Dashboard Overview',
         'role': role,
+        'user_role': role,
+        'is_admin': role == 'Admin',
+        'is_officer': role in ('Admin', 'Equipment Officer'),
+        'is_finance': role in ('Admin', 'Finance Officer'),
+        'is_operator': role == 'Equipment Operator',
+        'is_applicant': role == 'Applicant',
         'total_equipment': total_equipment,
         'available_equipment': available_equipment,
         'in_use_equipment': in_use_equipment,
@@ -126,21 +145,9 @@ def dashboard_view(request):
         'my_requests': my_requests,
         'my_assignments': my_assignments,
         'categories': categories,
+        'operators': operators,
     }
     return render(request, 'rentals/dashboard.html', context)
-
-
-# =====================================================================
-# DEMO ROLE SWITCHER (For Testing & Evaluator Convenience)
-# =====================================================================
-
-@login_required(login_url='login')
-def switch_user_demo(request, username):
-    """Allows rapid switching between demo roles for capstone presentation."""
-    target_user = get_object_or_404(User, username=username)
-    login(request, target_user)
-    messages.success(request, f"Switched account to {target_user.username} ({get_user_role(target_user)}).")
-    return redirect('dashboard')
 
 
 # =====================================================================
@@ -436,7 +443,9 @@ def apply_rental_page(request):
                 )
 
         # Send notifications to officers
-        officers = User.objects.filter(Q(is_superuser=True) | Q(groups__name='Equipment Officer'))
+        officers = User.objects.filter(is_active=True).filter(
+            Q(is_superuser=True) | Q(groups__name__in=['Admin', 'Equipment Officer'])
+        ).distinct()
         for off in officers:
             send_notification(
                 off,
@@ -531,6 +540,42 @@ def requests_list(request):
         'operators': User.objects.filter(Q(groups__name='Equipment Operator') | Q(username__icontains='operator')),
     }
     return render(request, 'rentals/requests_list.html', context)
+
+
+@login_required(login_url='login')
+@role_required(['Admin', 'Equipment Officer', 'Applicant'])
+def rented_equipment_list(request):
+    """Show rental equipment, limited to the signed-in applicant when applicable."""
+    query = request.GET.get('q', '').strip()
+    rentals = RentalRequestItem.objects.select_related(
+        'equipment__category',
+        'request__applicant__user',
+    ).filter(
+        request__status__in=['Approved', 'Scheduled', 'Released', 'Returned', 'Completed']
+    )
+
+    if get_user_role(request.user) == 'Applicant':
+        rentals = rentals.filter(request__applicant__user=request.user)
+
+    if query:
+        rentals = rentals.filter(
+            Q(equipment__equipment_code__icontains=query) |
+            Q(equipment__equipment_name__icontains=query) |
+            Q(request__applicant__user__username__icontains=query) |
+            Q(request__applicant__user__first_name__icontains=query) |
+            Q(request__applicant__user__last_name__icontains=query) |
+            Q(request__project_location__icontains=query)
+        )
+
+    rentals = rentals.order_by('-request__requested_start', '-request_id')
+    paginator = Paginator(rentals, 15)
+    page_obj = paginator.get_page(request.GET.get('page', 1))
+
+    return render(request, 'rentals/rented_equipment.html', {
+        'page_title': 'Rented Equipment',
+        'rentals': page_obj,
+        'query': query,
+    })
 
 
 @login_required(login_url='login')

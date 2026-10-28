@@ -1,22 +1,15 @@
 from decimal import Decimal
-from datetime import timedelta
 from django.core.management.base import BaseCommand
-from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
-from django.utils import timezone
 
 from apps.rentals.models import (
     EquipmentCategory, Equipment, EquipmentRate,
-    Role, Applicant, RentalRequest, RentalRequestItem,
-    Reservation, EquipmentAssignment, UtilizationLog,
-    MaintenanceRecord, Payment, Notification
+    Role,
 )
-
-User = get_user_model()
 
 
 class Command(BaseCommand):
-    help = 'Seeds initial LGU Equipment Rental data, categories, equipment, rates, and demo accounts'
+    help = 'Seeds LGU equipment roles, categories, inventory, and rates'
 
     def handle(self, *args, **options):
         self.stdout.write(self.style.NOTICE("Seeding LGU Equipment Rental System data..."))
@@ -33,60 +26,7 @@ class Command(BaseCommand):
             Role.objects.get_or_create(role_name=name, defaults={'description': desc})
             Group.objects.get_or_create(name=name)
 
-        # 2. Demo User Accounts
-        demo_users = [
-            ('ADMIN12', 'System', 'Admin', 'admin12@lgu.gov.ph', 'Admin', True, True),
-            ('glenn', 'Glenn', 'Administrator', 'admin@lgu.gov.ph', 'Admin', True, True),
-            ('officer', 'Engr. Roberto', 'Mercado', 'officer@lgu.gov.ph', 'Equipment Officer', False, True),
-            ('finance', 'Ma. Lourdes', 'Santos', 'treasury@lgu.gov.ph', 'Finance Officer', False, False),
-            ('danilo_operator', 'Danilo', 'Reyes', 'operator@lgu.gov.ph', 'Equipment Operator', False, False),
-            ('farmer_juan', 'Juan', 'dela Cruz', 'juan@agricoop.ph', 'Applicant', False, False),
-            ('contractor_mateo', 'Mateo', 'Villanueva', 'build@mvcon.com', 'Applicant', False, False),
-        ]
-
-        created_users = {}
-        for username, fname, lname, email, role_name, is_super, is_staff in demo_users:
-            u, created = User.objects.get_or_create(
-                username=username,
-                defaults={
-                    'first_name': fname,
-                    'last_name': lname,
-                    'email': email,
-                    'is_superuser': is_super,
-                    'is_staff': is_staff,
-                }
-            )
-            if created or not u.password:
-                u.set_password('pass1234')
-                u.save()
-            grp = Group.objects.get(name=role_name)
-            u.groups.add(grp)
-            created_users[username] = u
-
-        # 3. Applicant Profiles
-        Applicant.objects.get_or_create(
-            user=created_users['farmer_juan'],
-            defaults={
-                'applicant_type': 'Farmer',
-                'organization_name': 'San Isidro Farmers Agricultural Cooperative',
-                'address': 'Brgy. San Isidro, Municipal Agri District',
-                'valid_id_type': 'Farmer Fisherfolk Registry System (RSBSA)',
-                'valid_id_number': 'RSBSA-02-137-00918',
-            }
-        )
-        contractor_app, _ = Applicant.objects.get_or_create(
-            user=created_users['contractor_mateo'],
-            defaults={
-                'applicant_type': 'Contractor',
-                'organization_name': 'MV Builders & General Construction',
-                'address': 'Poblacion Commercial Complex, National Highway',
-                'valid_id_type': 'PCAB License / PRC Engineering ID',
-                'valid_id_number': 'PCAB-LIC-2024-5589',
-                'tin_number': '412-887-321-000',
-            }
-        )
-
-        # 4. Equipment Categories
+        # 2. Equipment Categories
         categories_data = [
             ('Heavy Earthmoving & Construction', 'Excavators, backhoes, bulldozers, and heavy civil works equipment'),
             ('Road Maintenance & Compaction', 'Road rollers, motor graders, and asphalt pavers'),
@@ -99,7 +39,7 @@ class Command(BaseCommand):
             cat, _ = EquipmentCategory.objects.get_or_create(category_name=cname, defaults={'description': cdesc})
             created_cats[cname] = cat
 
-        # 5. Master Equipment Inventory
+        # 3. Master Equipment Inventory
         equipment_list = [
             {
                 'code': 'EXC-001',
@@ -215,50 +155,4 @@ class Command(BaseCommand):
                 defaults={'is_active': 1}
             )
 
-        # 6. Sample Request and Payment for demonstration
-        if not RentalRequest.objects.exists():
-            excavator = Equipment.objects.get(equipment_code='EXC-001')
-            now = timezone.now()
-            sample_req = RentalRequest.objects.create(
-                applicant=contractor_app,
-                purpose='Drainage excavation and municipal road slope rehabilitation',
-                project_location='Sitio Centro, Barangay San Isidro',
-                requested_start=now + timedelta(days=1),
-                requested_end=now + timedelta(days=3),
-                status='Approved',
-                reviewed_by=created_users['officer'],
-                reviewed_at=now,
-                review_remarks='Approved per municipal engineering schedule. Coordinate dispatch with operator.',
-            )
-            RentalRequestItem.objects.create(
-                request=sample_req,
-                equipment=excavator,
-                quantity=1,
-                estimated_rate=Decimal('8500.00'),
-                subtotal=Decimal('17000.00'),
-            )
-            Reservation.objects.create(
-                request=sample_req,
-                equipment=excavator,
-                scheduled_start=now + timedelta(days=1),
-                scheduled_end=now + timedelta(days=3),
-                status='Scheduled',
-                approved_by=created_users['officer'],
-            )
-            pay = Payment.objects.create(
-                request=sample_req,
-                amount=Decimal('17000.00'),
-                payment_type='Rental Fee',
-                payment_method='Cash',
-                reference_or_no='OR-2026-LGU-001',
-                payment_status='Paid',
-                recorded_by=created_users['finance'],
-                remarks='Full rental fee payment collected for Sitio Centro drainage project.',
-            )
-            Notification.objects.create(
-                user=created_users['contractor_mateo'],
-                title='Application Approved & OR Issued',
-                message=f'Your rental request REQ-#{sample_req.id:04d} has been approved with Official Receipt OR-2026-LGU-001.',
-            )
-
-        self.stdout.write(self.style.SUCCESS("Successfully seeded LGU equipment, categories, rates, and demo accounts!"))
+        self.stdout.write(self.style.SUCCESS("Successfully seeded LGU roles, equipment, categories, and rates."))

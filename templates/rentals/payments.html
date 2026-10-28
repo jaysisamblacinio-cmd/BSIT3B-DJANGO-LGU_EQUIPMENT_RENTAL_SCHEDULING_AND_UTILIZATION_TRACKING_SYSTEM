@@ -136,7 +136,7 @@
               ₱{{ p.amount|floatformat:2 }}
             </td>
             <td class="text-muted small">
-              {{ p.recorded_by.username }}
+              {% if p.recorded_by %}{{ p.recorded_by.get_full_name|default:p.recorded_by.username }}{% else %}—{% endif %}
             </td>
             <td>
               <a href="{% url 'rentals:payment_receipt' p.id %}" target="_blank" class="btn btn-sm btn-outline-secondary" title="Print Official Receipt">

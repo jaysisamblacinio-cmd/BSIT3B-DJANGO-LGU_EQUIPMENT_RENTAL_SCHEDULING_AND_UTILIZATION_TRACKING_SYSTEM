@@ -2,13 +2,15 @@ from datetime import timedelta
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
+from django.core.management import call_command
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
 from apps.rentals.models import (
     Applicant, Equipment, EquipmentCategory, EquipmentRate, Payment,
-    RentalRequest, RentalRequestItem, Reservation
+    Notification, RentalRequest, RentalRequestItem, Reservation
 )
 
 User = get_user_model()
@@ -53,6 +55,115 @@ class RentalsWorkflowTests(TestCase):
         self.assertContains(res, 'TR-999')
         self.assertContains(res, 'Kubota Farm Tractor 4WD')
 
+    def test_seed_command_does_not_create_demo_accounts_or_sample_rentals(self):
+        call_command('seed_data', verbosity=0)
+
+        demo_usernames = (
+            'ADMIN12',
+            'glenn',
+            'officer',
+            'finance',
+            'danilo_operator',
+            'farmer_juan',
+            'contractor_mateo',
+        )
+        self.assertFalse(User.objects.filter(username__in=demo_usernames).exists())
+        self.assertFalse(RentalRequest.objects.exists())
+        self.assertFalse(Payment.objects.exists())
+
+    def test_rented_equipment_page_shows_approved_rentals(self):
+        start = timezone.now() + timedelta(days=2)
+        approved_request = RentalRequest.objects.create(
+            applicant=self.applicant,
+            purpose='Road repair',
+            project_location='North District',
+            requested_start=start,
+            requested_end=start + timedelta(days=2),
+            status='Approved',
+        )
+        RentalRequestItem.objects.create(
+            request=approved_request,
+            equipment=self.equipment,
+            quantity=1,
+            estimated_rate=Decimal('3500.00'),
+            subtotal=Decimal('7000.00'),
+        )
+        pending_request = RentalRequest.objects.create(
+            applicant=self.applicant,
+            purpose='Pending work',
+            project_location='South District',
+            requested_start=start,
+            requested_end=start + timedelta(days=1),
+            status='Pending',
+        )
+        RentalRequestItem.objects.create(
+            request=pending_request,
+            equipment=self.equipment,
+            quantity=1,
+            estimated_rate=Decimal('3500.00'),
+            subtotal=Decimal('3500.00'),
+        )
+
+        self.client.force_login(self.admin)
+        response = self.client.get(reverse('rentals:rented_equipment'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'REQ-%04d' % approved_request.pk)
+        self.assertContains(response, 'Kubota Farm Tractor 4WD')
+        self.assertContains(response, 'North District')
+        self.assertNotContains(response, 'South District')
+
+    def test_applicant_rented_equipment_page_shows_only_own_rentals(self):
+        start = timezone.now() + timedelta(days=2)
+        own_request = RentalRequest.objects.create(
+            applicant=self.applicant,
+            purpose='Own rental',
+            project_location='Applicant District',
+            requested_start=start,
+            requested_end=start + timedelta(days=1),
+            status='Approved',
+        )
+        RentalRequestItem.objects.create(
+            request=own_request,
+            equipment=self.equipment,
+            quantity=1,
+            estimated_rate=Decimal('3500.00'),
+            subtotal=Decimal('3500.00'),
+        )
+
+        other_user = User.objects.create_user('other_farmer', password='pass1234')
+        other_applicant = Applicant.objects.create(
+            user=other_user,
+            applicant_type='Farmer',
+            address='Other address',
+            valid_id_type='Government ID',
+            valid_id_number='OTHER-123',
+        )
+        other_request = RentalRequest.objects.create(
+            applicant=other_applicant,
+            purpose='Other rental',
+            project_location='Private District',
+            requested_start=start,
+            requested_end=start + timedelta(days=1),
+            status='Approved',
+        )
+        RentalRequestItem.objects.create(
+            request=other_request,
+            equipment=self.equipment,
+            quantity=1,
+            estimated_rate=Decimal('3500.00'),
+            subtotal=Decimal('3500.00'),
+        )
+
+        self.client.force_login(self.applicant_user)
+        response = self.client.get(reverse('rentals:rented_equipment'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'My Rented Equipment')
+        self.assertContains(response, 'Applicant District')
+        self.assertNotContains(response, 'Private District')
+        self.assertContains(response, 'My Rented Equipment</span>')
+
     def test_rental_request_and_conflict_detection(self):
         start = timezone.now() + timedelta(days=2)
         end = start + timedelta(days=2)
@@ -94,6 +205,32 @@ class RentalsWorkflowTests(TestCase):
         # 4. Equipment now has reservation - overlapping dates must trigger conflict!
         is_avail_conflict, _ = self.equipment.is_available_for_dates(start + timedelta(hours=4), end - timedelta(hours=4))
         self.assertFalse(is_avail_conflict)
+
+    def test_application_notifies_admin_group_member(self):
+        admin_group = Group.objects.create(name='Admin')
+        admin_user = User.objects.create_user(
+            username='group_admin',
+            email='group_admin@example.com',
+            password='pass1234',
+        )
+        admin_user.groups.add(admin_group)
+
+        start = timezone.now() + timedelta(days=2)
+        end = start + timedelta(days=1)
+        self.client.force_login(self.applicant_user)
+        response = self.client.post(reverse('rentals:apply_rental'), {
+            'equipment_ids': [self.equipment.pk],
+            'requested_start': start.isoformat(),
+            'requested_end': end.isoformat(),
+            'purpose': 'Prepare farmland',
+            'project_location': 'Barangay San Isidro',
+            'applicant_type': 'Farmer',
+        })
+
+        self.assertRedirects(response, reverse('rentals:my_requests'))
+        notification = Notification.objects.get(user=admin_user)
+        self.assertIn('New Rental Application', notification.title)
+        self.assertIn(self.equipment.equipment_code, notification.message)
 
     def test_payment_and_receipt(self):
         req = RentalRequest.objects.create(

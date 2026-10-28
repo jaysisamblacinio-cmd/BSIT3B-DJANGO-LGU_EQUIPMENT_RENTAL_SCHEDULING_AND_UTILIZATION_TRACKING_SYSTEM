@@ -14,6 +14,7 @@ urlpatterns = [
     path('apply/', views.apply_rental_page, name='apply_rental'),
     path('my-requests/', views.my_requests, name='my_requests'),
     path('requests/', views.requests_list, name='requests_list'),
+    path('rented-equipment/', views.rented_equipment_list, name='rented_equipment'),
     path('requests/<int:pk>/action/', views.request_action_ajax, name='request_action_ajax'),
     path('requests/<int:pk>/agreement/', views.rental_agreement_view, name='rental_agreement'),
 
@@ -44,6 +45,4 @@ urlpatterns = [
     path('notifications/', views.notifications_list, name='notifications'),
     path('notifications/<int:pk>/read/', views.mark_notification_read_ajax, name='mark_notification_read_ajax'),
 
-    # Demo Role Switcher
-    path('switch-role/<str:username>/', views.switch_user_demo, name='switch_user_demo'),
 ]

@@ -68,7 +68,7 @@
             </td>
             <td>
               {% if d.operator %}
-              <div class="fw-semibold"><i class="fas fa-user-tie text-muted me-1"></i>{{ d.operator.get_full_name|default:d.operator.username }}</div>
+              <div class="fw-semibold"><i class="fas fa-user-tie text-muted me-1"></i>{% if d.operator %}{{ d.operator.get_full_name|default:d.operator.username }}{% else %}Unassigned{% endif %}</div>
               <div class="text-muted small">Operator ID #{{ d.operator.id }}</div>
               {% else %}
               <span class="text-muted small fst-italic">Client Authorized Driver</span>
@@ -77,7 +77,7 @@
             <td class="small">
               {% if d.released_at %}
               <div class="text-success"><i class="fas fa-check-circle me-1"></i>{{ d.released_at|date:"M j, Y H:i" }}</div>
-              <div class="text-muted">By: {{ d.released_by.username|default:"Officer" }}</div>
+              <div class="text-muted">By: {% if d.released_by %}{{ d.released_by.get_full_name|default:d.released_by.username }}{% else %}Officer{% endif %}</div>
               <div class="text-truncate text-muted" style="max-width: 170px;" title="{{ d.condition_before }}">{{ d.condition_before }}</div>
               {% else %}
               <span class="text-muted fst-italic">Awaiting release inspection</span>
@@ -86,7 +86,7 @@
             <td class="small">
               {% if d.returned_at %}
               <div class="text-primary"><i class="fas fa-clock-rotate-left me-1"></i>{{ d.returned_at|date:"M j, Y H:i" }}</div>
-              <div class="text-muted">By: {{ d.received_by.username|default:"Officer" }}</div>
+              <div class="text-muted">By: {% if d.received_by %}{{ d.received_by.get_full_name|default:d.received_by.username }}{% else %}Officer{% endif %}</div>
               <div class="text-truncate text-muted" style="max-width: 170px;" title="{{ d.condition_after }}">{{ d.condition_after }}</div>
               {% else %}
               <span class="text-muted fst-italic">Still deployed</span>

@@ -253,7 +253,7 @@
 
       <div class="sig-block">
         <div>INSPECTED & APPROVED BY:</div>
-        <div class="sig-line">{{ req.reviewed_by.get_full_name|default:req.reviewed_by.username|default:"Equipment Officer" }}</div>
+        <div class="sig-line">{% if req.reviewed_by %}{{ req.reviewed_by.get_full_name|default:req.reviewed_by.username }}{% else %}Equipment Officer{% endif %}</div>
         <div class="sig-role">Municipal Equipment & Motorpool Officer</div>
       </div>
 

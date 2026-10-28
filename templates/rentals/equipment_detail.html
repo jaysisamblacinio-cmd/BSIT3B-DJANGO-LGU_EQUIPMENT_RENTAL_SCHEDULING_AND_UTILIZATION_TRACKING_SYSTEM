@@ -159,8 +159,8 @@
                     {% for d in deployments %}
                     <tr>
                       <td class="text-muted small">{{ d.released_at|date:"M j, Y H:i"|default:"Pending" }}</td>
-                      <td>{{ d.operator.get_full_name|default:d.operator.username|default:"Unassigned" }}</td>
-                      <td>{{ d.released_by.username|default:"N/A" }}</td>
+                      <td>{% if d.operator %}{{ d.operator.get_full_name|default:d.operator.username }}{% else %}Unassigned{% endif %}</td>
+                      <td>{% if d.released_by %}{{ d.released_by.get_full_name|default:d.released_by.username }}{% else %}N/A{% endif %}</td>
                       <td class="text-muted small">{{ d.returned_at|date:"M j, Y H:i"|default:"In Field" }}</td>
                       <td><span class="badge {{ d.status_badge_class }}">{{ d.status }}</span></td>
                     </tr>

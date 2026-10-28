@@ -183,7 +183,7 @@
             <td class="fw-bold text-primary">{{ log.operating_hours }} hrs</td>
             <td class="text-muted">{{ log.fuel_used_liters }} L</td>
             <td class="small">{{ log.work_description }}</td>
-            <td class="text-muted small">{{ log.logged_by.username|default:"Operator" }}</td>
+            <td class="text-muted small">{% if log.logged_by %}{{ log.logged_by.get_full_name|default:log.logged_by.username }}{% else %}Operator{% endif %}</td>
           </tr>
           {% empty %}
           <tr>
