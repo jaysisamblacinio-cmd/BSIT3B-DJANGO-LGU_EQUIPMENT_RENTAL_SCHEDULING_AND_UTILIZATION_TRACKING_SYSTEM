@@ -97,22 +97,25 @@
       <table class="table table-vcenter table-hover card-table">
         <thead>
           <tr>
-            <th>Official Receipt (OR) #</th>
+            <th>Transaction Reference / OR #</th>
             <th>Payment Date & Time</th>
             <th>Application Ref #</th>
             <th>Payor / Applicant</th>
             <th>Classification</th>
             <th>Payment Method</th>
+            <th>Status</th>
             <th>Amount Collected</th>
             <th>Recorded By</th>
-            <th class="w-1">Receipt</th>
+            <th class="w-1">Action</th>
           </tr>
         </thead>
         <tbody>
           {% for p in payments %}
           <tr>
             <td class="fw-bold">
-              <span class="badge bg-green-lt text-dark fs-6">{{ p.reference_or_no|default:p.id }}</span>
+              <span class="badge bg-green-lt text-dark fs-6">
+                {% if p.payment_status == 'Pending' %}{{ p.transaction_reference|default:'—' }}{% else %}{{ p.reference_or_no|default:p.id }}{% endif %}
+              </span>
             </td>
             <td class="text-muted small">
               {{ p.payment_date|date:"M j, Y - g:i A" }}
@@ -132,6 +135,7 @@
             <td>
               <span class="badge bg-azure-lt">{{ p.payment_method }}</span>
             </td>
+            <td><span class="badge {{ p.status_badge_class }}">{{ p.get_payment_status_display }}</span></td>
             <td class="fw-bold text-success fs-5">
               ₱{{ p.amount|floatformat:2 }}
             </td>
@@ -139,14 +143,25 @@
               {% if p.recorded_by %}{{ p.recorded_by.get_full_name|default:p.recorded_by.username }}{% else %}—{% endif %}
             </td>
             <td>
+              {% if p.payment_status == 'Pending' %}
+              {% if role == 'Admin' or role == 'Finance Officer' %}
+              <form method="post" action="{% url 'rentals:payment_verify_ajax' p.id %}">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-success" onclick="return confirm('Verify this payment and issue an official receipt?');">
+                  <i class="fas fa-check me-1"></i> Verify
+                </button>
+              </form>
+              {% endif %}
+              {% else %}
               <a href="{% url 'rentals:payment_receipt' p.id %}" target="_blank" class="btn btn-sm btn-outline-secondary" title="Print Official Receipt">
                 <i class="fas fa-print me-1"></i> Print
               </a>
+              {% endif %}
             </td>
           </tr>
           {% empty %}
           <tr>
-            <td colspan="9" class="text-center py-5 text-muted">No payment records found.</td>
+            <td colspan="10" class="text-center py-5 text-muted">No payment records found.</td>
           </tr>
           {% endfor %}
         </tbody>
@@ -211,10 +226,9 @@
             <div class="col-md-6">
               <label class="form-label required">Payment Method</label>
               <select name="payment_method" class="form-select">
-                <option value="Cash" selected>Cash (Municipal Treasury)</option>
-                <option value="Bank Transfer">Bank Transfer (Landbank / DBP)</option>
-                <option value="Check">Manager / Cashier Check</option>
-                <option value="GCash/e-Wallet">GCash / e-Wallet</option>
+                {% for value, label in method_choices %}
+                <option value="{{ value }}"{% if value == 'Cash' %} selected{% endif %}>{{ label }}</option>
+                {% endfor %}
               </select>
             </div>
             <div class="col-md-6">

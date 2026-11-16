@@ -38,7 +38,12 @@
         </div>
         <div class="card-body">
           <div class="mb-3 text-center p-3 bg-surface-secondary rounded">
+            {% if equipment.photo_url %}
+            <img src="{{ equipment.photo_url }}" alt="{{ equipment.equipment_name }}"
+                 class="img-fluid rounded mb-3" style="max-height: 280px; object-fit: contain;">
+            {% else %}
             <i class="fas fa-tractor fa-4x text-primary mb-2"></i>
+            {% endif %}
             <div class="h2 mb-0 fw-bold text-success">{{ equipment.display_rate }}</div>
             <div class="text-muted small">Standard Rental Charge</div>
           </div>

@@ -148,11 +148,17 @@ class Command(BaseCommand):
                     'current_location': eq_data['location'],
                 }
             )
-            EquipmentRate.objects.get_or_create(
+            matching_rates = EquipmentRate.objects.filter(
                 equipment=eq,
                 rate_amount=eq_data['rate'],
                 rate_unit=eq_data['unit'],
-                defaults={'is_active': 1}
             )
+            if not matching_rates.exists():
+                EquipmentRate.objects.create(
+                    equipment=eq,
+                    rate_amount=eq_data['rate'],
+                    rate_unit=eq_data['unit'],
+                    is_active=1,
+                )
 
         self.stdout.write(self.style.SUCCESS("Successfully seeded LGU roles, equipment, categories, and rates."))

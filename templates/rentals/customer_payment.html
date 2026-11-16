@@ -1,0 +1,114 @@
+{% extends "theme/base.html" %}
+{% block content %}
+<div class="container-xl">
+  <div class="page-header d-print-none mb-3">
+    <div class="row align-items-center">
+      <div class="col">
+        <div class="page-pretitle text-uppercase fw-bold text-primary">Applicant Portal</div>
+        <h2 class="page-title"><i class="fas fa-credit-card me-2 text-primary"></i>Rental Payment</h2>
+        <div class="text-muted">Request REQ-#{{ rental_request.id|stringformat:"04d" }}</div>
+      </div>
+      <div class="col-auto ms-auto">
+        <a href="{% url 'rentals:my_requests' %}" class="btn btn-outline-secondary">
+          <i class="fas fa-arrow-left me-1"></i> My Applications
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="row row-cards">
+    <div class="col-lg-7">
+      <div class="card shadow-sm">
+        <div class="card-header">
+          <h3 class="card-title">Submit Payment for Treasury Verification</h3>
+        </div>
+        <div class="card-body">
+          {% if pending_payment %}
+          <div class="alert alert-warning mb-0">
+            <h4 class="alert-title">Payment awaiting verification</h4>
+            <div>Your {{ pending_payment.payment_method }} payment of ₱{{ pending_payment.amount|floatformat:2 }} has been submitted. You can submit another payment after Treasury verifies this one.</div>
+            {% if pending_payment.transaction_reference %}
+            <div class="mt-2">Transaction reference: <strong>{{ pending_payment.transaction_reference }}</strong></div>
+            {% endif %}
+          </div>
+          {% elif rental_request.balance_due <= 0 %}
+          <div class="alert alert-success mb-0">
+            <h4 class="alert-title">No balance due</h4>
+            Your rental request is fully paid.
+          </div>
+          {% else %}
+          {% if rental_request.status == 'Pending' %}
+          <div class="alert alert-warning">
+            <h4 class="alert-title">Application awaiting review</h4>
+            You can submit payment details now, but payment verification does not mean your rental application has been approved.
+          </div>
+          {% endif %}
+          <div class="alert alert-info">
+            Pay through the official Municipal Treasury channel for your selected method, then submit the payment details below. This website does not process or charge payments online; Treasury verifies each submission before issuing an official receipt. Do not enter your PIN or one-time password here.
+          </div>
+
+          <form method="post">
+            {% csrf_token %}
+            <div class="mb-3">
+              <label for="amount" class="form-label required">Payment Amount (PHP)</label>
+              <input type="number" id="amount" name="amount" class="form-control" min="0.01" max="{{ rental_request.balance_due }}" step="0.01" value="{{ rental_request.balance_due|floatformat:2 }}" required>
+              <div class="form-hint">Remaining balance: ₱{{ rental_request.balance_due|floatformat:2 }}</div>
+            </div>
+            <div class="mb-3">
+              <label for="payment_method" class="form-label required">Payment Method</label>
+              <select id="payment_method" name="payment_method" class="form-select" required>
+                {% for value, label in payment_method_choices %}
+                <option value="{{ value }}"{% if value == rental_request.preferred_payment_method %} selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="mb-3">
+              <label for="transaction_reference" class="form-label">Transaction Reference</label>
+              <input type="text" id="transaction_reference" name="transaction_reference" class="form-control" maxlength="100" placeholder="Reference number from your payment">
+              <div class="form-hint">Required for bank transfer, check, and e-wallet payments. Cash payments can be verified at the Municipal Treasury.</div>
+            </div>
+            <div class="mb-3">
+              <label for="remarks" class="form-label">Notes</label>
+              <textarea id="remarks" name="remarks" class="form-control" rows="2" maxlength="1000" placeholder="Optional details for Treasury"></textarea>
+            </div>
+            <div class="form-check mb-3">
+              <input class="form-check-input" type="checkbox" name="confirm_payment" id="confirm_payment" required>
+              <label class="form-check-label" for="confirm_payment">I have completed payment through the selected official channel.</label>
+            </div>
+            <button type="submit" class="btn btn-primary w-100">
+              <i class="fas fa-paper-plane me-1"></i> Submit Payment for Verification
+            </button>
+          </form>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-5">
+      <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white">
+          <h3 class="card-title text-white mb-0"><i class="fas fa-receipt me-2"></i>Payment Summary</h3>
+        </div>
+        <div class="card-body">
+          <div class="d-flex justify-content-between mb-2">
+            <span class="text-muted">Application status</span>
+            <strong>{{ rental_request.status }}</strong>
+          </div>
+          <div class="d-flex justify-content-between mb-2">
+            <span class="text-muted">Estimated rental total</span>
+            <strong>₱{{ rental_request.total_estimated_cost|floatformat:2 }}</strong>
+          </div>
+          <div class="d-flex justify-content-between mb-2">
+            <span class="text-muted">Payments verified</span>
+            <strong class="text-success">₱{{ rental_request.total_paid|floatformat:2 }}</strong>
+          </div>
+          <div class="d-flex justify-content-between border-top pt-2">
+            <span class="fw-bold">Balance due</span>
+            <strong class="text-danger">₱{{ rental_request.balance_due|floatformat:2 }}</strong>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

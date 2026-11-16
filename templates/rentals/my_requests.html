@@ -87,6 +87,17 @@
                   </div>
                 </div>
 
+                {% if req.pending_payment %}
+                <div class="alert alert-warning py-2 small mt-3 mb-0">
+                  <i class="fas fa-hourglass-half me-1"></i>
+                  Payment of ₱{{ req.pending_payment.amount|floatformat:2 }} is awaiting Treasury verification.
+                </div>
+                {% elif req.status in 'Pending,Approved,Scheduled,Released,Returned,Completed' and req.balance_due > 0 %}
+                <a href="{% url 'rentals:customer_payment' req.id %}" class="btn btn-primary btn-sm w-100 mt-3">
+                  <i class="fas fa-credit-card me-1"></i> Proceed to Payment
+                </a>
+                {% endif %}
+
                 <!-- Printable Agreement Button -->
                 {% if req.status in 'Approved,Scheduled,Released,Returned,Completed' %}
                 <a href="{% url 'rentals:rental_agreement' req.id %}" target="_blank" class="btn btn-outline-primary btn-sm w-100 mt-3">

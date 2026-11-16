@@ -13,6 +13,7 @@ urlpatterns = [
     # Rental Application Workflow
     path('apply/', views.apply_rental_page, name='apply_rental'),
     path('my-requests/', views.my_requests, name='my_requests'),
+    path('requests/<int:pk>/payment/', views.customer_payment_page, name='customer_payment'),
     path('requests/', views.requests_list, name='requests_list'),
     path('rented-equipment/', views.rented_equipment_list, name='rented_equipment'),
     path('requests/<int:pk>/action/', views.request_action_ajax, name='request_action_ajax'),
@@ -35,6 +36,7 @@ urlpatterns = [
     # Finance & Treasury Payments
     path('payments/', views.payment_list, name='payment_list'),
     path('payments/ajax/save/', views.payment_save_ajax, name='payment_save_ajax'),
+    path('payments/<int:pk>/verify/', views.payment_verify_ajax, name='payment_verify_ajax'),
     path('payments/<int:pk>/receipt/', views.payment_receipt_view, name='payment_receipt'),
 
     # Reports & Analytics (Excel)

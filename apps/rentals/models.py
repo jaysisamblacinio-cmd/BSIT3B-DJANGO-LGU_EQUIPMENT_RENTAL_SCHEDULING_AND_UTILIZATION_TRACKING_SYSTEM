@@ -100,6 +100,14 @@ class Equipment(models.Model):
         return f"[{self.equipment_code}] {self.equipment_name}"
 
     @property
+    def photo_url(self):
+        if not self.photo:
+            return ''
+        if self.photo.startswith(('http://', 'https://', '/')):
+            return self.photo
+        return f"{settings.MEDIA_URL}{self.photo.lstrip('/')}"
+
+    @property
     def active_rate(self):
         rate = self.rates.filter(is_active=1).order_by('-effective_from').first()
         return rate
@@ -189,6 +197,7 @@ class RentalRequest(models.Model):
     project_location = models.CharField(max_length=255)
     requested_start = models.DateTimeField()
     requested_end = models.DateTimeField()
+    preferred_payment_method = models.CharField(max_length=30, default='Cash')
     status = models.CharField(max_length=30, default='Pending')
     reviewed_at = models.DateTimeField(blank=True, null=True)
     rejection_reason = models.TextField(blank=True, null=True)
@@ -422,10 +431,11 @@ class Payment(models.Model):
         ('Damage Fee', 'Damage / Repair Charge'),
     )
     METHOD_CHOICES = (
-        ('Cash', 'Cash (LGU Treasury)'),
-        ('Bank Transfer', 'Bank Transfer / Landbank'),
+        ('Cash', 'Cash (Municipal Treasury)'),
+        ('Bank Transfer', 'Bank Transfer (Landbank / DBP)'),
         ('Check', 'Manager / Cashier Check'),
-        ('GCash/e-Wallet', 'e-Wallet / GCash'),
+        ('GCash/e-Wallet', 'GCash / e-Wallet'),
+        ('Maya', 'Maya'),
     )
     STATUS_CHOICES = (
         ('Paid', 'Paid'),
@@ -437,6 +447,7 @@ class Payment(models.Model):
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     payment_type = models.CharField(max_length=30, default='Rental Fee')
     payment_method = models.CharField(max_length=30, default='Cash')
+    transaction_reference = models.CharField(max_length=100, blank=True, null=True)
     reference_or_no = models.CharField(max_length=100, blank=True, null=True)
     payment_status = models.CharField(max_length=20, default='Paid')
     payment_date = models.DateTimeField(default=timezone.now)

@@ -65,6 +65,14 @@
     <div class="col-sm-6 col-lg-4">
       <div class="card shadow-sm h-100 hover-shadow transition">
         <div class="card-status-top {% if eq.availability_status == 'Available' %}bg-success{% elif eq.availability_status == 'In Use' %}bg-primary{% elif eq.availability_status == 'Under Maintenance' %}bg-danger{% else %}bg-warning{% endif %}"></div>
+        {% if eq.photo_url %}
+        <img src="{{ eq.photo_url }}" class="card-img-top" alt="{{ eq.equipment_name }}"
+             style="height: 190px; object-fit: cover;">
+        {% else %}
+        <div class="d-flex align-items-center justify-content-center bg-surface-secondary text-primary" style="height: 190px;">
+          <i class="fas fa-tractor fa-4x" aria-hidden="true"></i>
+        </div>
+        {% endif %}
         <div class="card-body">
           <div class="d-flex align-items-start justify-content-between mb-2">
             <div>
@@ -128,6 +136,7 @@
                       data-condition="{{ eq.condition_status }}"
                       data-availability="{{ eq.availability_status }}"
                       data-location="{{ eq.current_location }}"
+                      data-photo-url="{{ eq.photo_url }}"
                       data-rate="{{ eq.active_rate.rate_amount|default:'' }}"
                       data-unit="{{ eq.active_rate.rate_unit|default:'Day' }}"
                       title="Edit Equipment">
@@ -275,6 +284,18 @@
               <label class="form-label">Depot / Current Location</label>
               <input type="text" name="current_location" id="eq_location" class="form-control" placeholder="e.g. LGU Motorpool Bay 3, Poblacion">
             </div>
+            <div class="col-12">
+              <label class="form-label">Equipment Photo</label>
+              <input type="file" name="photo" id="eq_photo" class="form-control" accept="image/jpeg,image/png,image/webp">
+              <div class="form-hint">JPEG, PNG, or WebP; maximum 5 MB. Leave empty to keep the current photo.</div>
+              <div id="eq_current_photo_wrap" class="mt-2 d-none">
+                <img id="eq_current_photo" src="" alt="Current equipment photo" style="max-width: 180px; max-height: 120px; object-fit: cover;">
+                <div class="form-check mt-2">
+                  <input type="checkbox" class="form-check-input" name="remove_photo" id="eq_remove_photo">
+                  <label class="form-check-label" for="eq_remove_photo">Remove current photo</label>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
         <div class="modal-footer">
@@ -315,6 +336,8 @@
   const errorBox = document.getElementById('equipmentFormError');
   const submitBtn = document.getElementById('eqSubmitBtn');
   const title = document.getElementById('equipmentModalTitle');
+  const photoWrap = document.getElementById('eq_current_photo_wrap');
+  const photoPreview = document.getElementById('eq_current_photo');
 
   const deleteModalEl = document.getElementById('deleteEquipmentModal');
   const confirmDeleteBtn = document.getElementById('confirmDeleteEquipmentBtn');
@@ -325,6 +348,8 @@
     const btn = event.relatedTarget;
     errorBox.classList.add('d-none');
     form.reset();
+    photoWrap.classList.add('d-none');
+    photoPreview.removeAttribute('src');
 
     if (!btn || btn.getAttribute('data-mode') !== 'edit') {
       title.textContent = 'Register Government Machinery';
@@ -347,6 +372,11 @@
       document.getElementById('eq_location').value = btn.getAttribute('data-location') || '';
       document.getElementById('eq_rate').value = btn.getAttribute('data-rate') || '';
       document.getElementById('eq_unit').value = btn.getAttribute('data-unit') || 'Day';
+      const photoUrl = btn.getAttribute('data-photo-url');
+      if (photoUrl) {
+        photoPreview.src = photoUrl;
+        photoWrap.classList.remove('d-none');
+      }
       submitBtn.textContent = 'Save Changes';
     }
   });

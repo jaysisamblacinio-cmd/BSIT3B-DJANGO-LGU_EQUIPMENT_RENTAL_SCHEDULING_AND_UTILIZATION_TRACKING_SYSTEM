@@ -1,16 +1,18 @@
 import io
 import logging
 from datetime import datetime, timedelta
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
+from uuid import uuid4
 
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
+from django.core.files.storage import default_storage
 from django.core.paginator import Paginator
 from django.db import DatabaseError, transaction
 from django.db.models import Avg, Count, Q, Sum
-from django.http import HttpResponse, JsonResponse
+from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_GET, require_POST
@@ -24,6 +26,8 @@ from .models import (
     RentalRequestItem, Reservation, Role, UtilizationLog
 )
 from .permissions import get_user_role, role_required
+
+from PIL import Image, UnidentifiedImageError
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -237,9 +241,32 @@ def equipment_save_ajax(request):
     location = request.POST.get('current_location', '').strip()
     rate_amount = request.POST.get('rate_amount', '').strip()
     rate_unit = request.POST.get('rate_unit', 'Day').strip()
+    photo_file = request.FILES.get('photo')
+    remove_photo = request.POST.get('remove_photo') == 'on'
 
     if not code or not name or not category_id:
         return JsonResponse({'error': 'Equipment code, name, and category are required.'}, status=400)
+
+    if photo_file and remove_photo:
+        return JsonResponse({'error': 'Choose either a new equipment photo or remove the current photo.'}, status=400)
+
+    photo_format = None
+    if photo_file:
+        if photo_file.size > 5 * 1024 * 1024:
+            return JsonResponse({'error': 'Equipment photos must be 5 MB or smaller.'}, status=400)
+        try:
+            with Image.open(photo_file) as image:
+                photo_format = image.format
+                if image.width * image.height > 20_000_000:
+                    return JsonResponse({'error': 'Equipment photos must be 20 megapixels or smaller.'}, status=400)
+                image.verify()
+        except (UnidentifiedImageError, OSError, Image.DecompressionBombError):
+            return JsonResponse({'error': 'Upload a valid JPEG, PNG, or WebP image.'}, status=400)
+        finally:
+            photo_file.seek(0)
+
+        if photo_format not in {'JPEG', 'PNG', 'WEBP'}:
+            return JsonResponse({'error': 'Upload a valid JPEG, PNG, or WebP image.'}, status=400)
 
     category = get_object_or_404(EquipmentCategory, pk=category_id)
 
@@ -267,6 +294,18 @@ def equipment_save_ajax(request):
     equipment.availability_status = availability
     equipment.current_location = location
     equipment.save()
+
+    if photo_file:
+        extension = {'JPEG': 'jpg', 'PNG': 'png', 'WEBP': 'webp'}[photo_format]
+        photo_path = default_storage.save(
+            f'equipment/photos/{equipment.pk}-{uuid4().hex}.{extension}',
+            photo_file,
+        )
+        equipment.photo = photo_path
+        equipment.save(update_fields=['photo'])
+    elif remove_photo:
+        equipment.photo = ''
+        equipment.save(update_fields=['photo'])
 
     # Rate update or create if provided
     if rate_amount:
@@ -343,6 +382,7 @@ def apply_rental_page(request):
         end_str = request.POST.get('requested_end')
         purpose = request.POST.get('purpose', '').strip()
         location = request.POST.get('project_location', '').strip()
+        payment_method = request.POST.get('payment_method', 'Cash')
 
         # Applicant profile fields
         applicant_type = request.POST.get('applicant_type', 'Individual')
@@ -377,6 +417,10 @@ def apply_rental_page(request):
 
         if not purpose or not location:
             messages.error(request, 'Please describe the project purpose and delivery location.')
+            return redirect('rentals:apply_rental')
+
+        if payment_method not in dict(Payment.METHOD_CHOICES):
+            messages.error(request, 'Please select a valid payment method.')
             return redirect('rentals:apply_rental')
 
         # Create or update applicant profile
@@ -427,6 +471,7 @@ def apply_rental_page(request):
                 project_location=location,
                 requested_start=start_dt,
                 requested_end=end_dt,
+                preferred_payment_method=payment_method,
                 status='Pending',
             )
 
@@ -454,8 +499,11 @@ def apply_rental_page(request):
             )
 
         log_audit(request.user, 'CREATE', 'tbl_rental_requests', rental_request.id, f"Submitted rental request #{rental_request.id}", request)
-        messages.success(request, f"Your rental application REQ-#{rental_request.id:04d} has been submitted successfully! The Equipment Office will review your request.")
-        return redirect('rentals:my_requests')
+        messages.success(
+            request,
+            f"Your rental application REQ-#{rental_request.id:04d} has been submitted. Continue to the payment page.",
+        )
+        return redirect('rentals:customer_payment', pk=rental_request.pk)
 
     context = {
         'page_title': 'Apply for Equipment Rental',
@@ -463,6 +511,7 @@ def apply_rental_page(request):
         'categories': categories,
         'preselected_eq': preselected_eq,
         'applicant_profile': applicant_profile,
+        'payment_method_choices': Payment.METHOD_CHOICES,
         'role': role,
     }
     return render(request, 'rentals/apply.html', context)
@@ -478,12 +527,19 @@ def my_requests(request):
         applicant = None
 
     if applicant:
-        requests_qs = RentalRequest.objects.filter(applicant=applicant).prefetch_related('items__equipment', 'reservations').order_by('-created_at')
+        requests_qs = RentalRequest.objects.filter(applicant=applicant).prefetch_related(
+            'items__equipment', 'reservations', 'payments'
+        ).order_by('-created_at')
     else:
         requests_qs = RentalRequest.objects.none()
 
     paginator = Paginator(requests_qs, 10)
     page_obj = paginator.get_page(request.GET.get('page', 1))
+    for rental_request in page_obj:
+        rental_request.pending_payment = next(
+            (payment for payment in rental_request.payments.all() if payment.payment_status == 'Pending'),
+            None,
+        )
 
     context = {
         'page_title': 'My Rental Applications',
@@ -495,6 +551,110 @@ def my_requests(request):
 
 
 @login_required(login_url='login')
+def customer_payment_page(request, pk):
+    """Collect a customer's payment details for an approved rental request."""
+    rental_request = get_object_or_404(
+        RentalRequest.objects.select_related('applicant__user'),
+        pk=pk,
+        applicant__user=request.user,
+    )
+    payable_statuses = {'Pending', 'Approved', 'Scheduled', 'Released', 'Returned', 'Completed'}
+    if rental_request.status not in payable_statuses:
+        messages.error(request, 'Payment is unavailable for rejected or cancelled applications.')
+        return redirect('rentals:my_requests')
+
+    if request.method == 'POST':
+        amount_str = request.POST.get('amount', '').strip()
+        method = request.POST.get('payment_method', '')
+        transaction_reference = request.POST.get('transaction_reference', '').strip()
+        remarks = request.POST.get('remarks', '').strip()
+
+        try:
+            amount = Decimal(amount_str)
+        except (InvalidOperation, TypeError):
+            messages.error(request, 'Enter a valid payment amount.')
+            return redirect('rentals:customer_payment', pk=pk)
+
+        if (
+            not amount.is_finite()
+            or amount <= 0
+            or amount.as_tuple().exponent < -2
+            or amount > Decimal('99999999.99')
+            or amount > rental_request.balance_due
+        ):
+            messages.error(request, 'Payment must be greater than zero and no more than the remaining balance.')
+            return redirect('rentals:customer_payment', pk=pk)
+        if method not in dict(Payment.METHOD_CHOICES):
+            messages.error(request, 'Select a valid payment method.')
+            return redirect('rentals:customer_payment', pk=pk)
+        if len(transaction_reference) > 100:
+            messages.error(request, 'Transaction reference must be 100 characters or fewer.')
+            return redirect('rentals:customer_payment', pk=pk)
+        if method != 'Cash' and not transaction_reference:
+            messages.error(request, 'Enter the transaction reference for this payment method.')
+            return redirect('rentals:customer_payment', pk=pk)
+        if request.POST.get('confirm_payment') != 'on':
+            messages.error(request, 'Confirm that you have completed payment through the selected channel.')
+            return redirect('rentals:customer_payment', pk=pk)
+
+        with transaction.atomic():
+            locked_request = get_object_or_404(
+                RentalRequest.objects.select_for_update(),
+                pk=pk,
+                applicant__user=request.user,
+            )
+            if locked_request.status not in payable_statuses:
+                messages.error(request, 'Payment is unavailable for rejected or cancelled applications.')
+                return redirect('rentals:my_requests')
+            if locked_request.payments.filter(payment_status='Pending').exists():
+                messages.error(request, 'A payment for this application is already awaiting verification.')
+                return redirect('rentals:customer_payment', pk=pk)
+            if amount > locked_request.balance_due:
+                messages.error(request, 'The remaining balance changed. Review the amount and try again.')
+                return redirect('rentals:customer_payment', pk=pk)
+
+            payment = Payment.objects.create(
+                request=locked_request,
+                amount=amount,
+                payment_type='Rental Fee',
+                payment_method=method,
+                transaction_reference=transaction_reference or None,
+                payment_status='Pending',
+                payment_date=timezone.now(),
+                remarks=remarks,
+                recorded_by=request.user,
+            )
+
+        finance_users = User.objects.filter(is_active=True).filter(
+            Q(is_superuser=True) | Q(groups__name__in=['Admin', 'Finance Officer'])
+        ).distinct()
+        for finance_user in finance_users:
+            send_notification(
+                finance_user,
+                f'Payment Submitted for Request #{locked_request.id:04d}',
+                f'{locked_request.applicant.display_name} submitted a {method} payment of ₱{amount:,.2f} for verification.',
+            )
+        log_audit(
+            request.user,
+            'PAYMENT_SUBMITTED',
+            'tbl_payments',
+            payment.id,
+            f'Submitted ₱{amount} for REQ #{locked_request.id} verification',
+            request,
+        )
+        messages.success(request, 'Payment details submitted. Your payment will be confirmed after Treasury verification.')
+        return redirect('rentals:my_requests')
+
+    pending_payment = rental_request.payments.filter(payment_status='Pending').first()
+    context = {
+        'page_title': f'Payment - Request #{rental_request.id:04d}',
+        'rental_request': rental_request,
+        'pending_payment': pending_payment,
+        'payment_method_choices': Payment.METHOD_CHOICES,
+    }
+    return render(request, 'rentals/customer_payment.html', context)
+
+
 def requests_list(request):
     """Management view of all rental requests for Admin, Equipment Officer, and Finance."""
     role = get_user_role(request.user)
@@ -628,7 +788,7 @@ def request_action_ajax(request, pk):
         send_notification(
             rental_request.applicant.user,
             f"Rental Application #{rental_request.id:04d} APPROVED",
-            f"Your request has been approved! Reservation is scheduled from {rental_request.requested_start:%b %d} to {rental_request.requested_end:%b %d}."
+            f"Your request has been approved! Reservation is scheduled from {rental_request.requested_start:%b %d} to {rental_request.requested_end:%b %d}. Visit My Applications to pay your balance."
         )
 
         log_audit(request.user, 'APPROVE', 'tbl_rental_requests', rental_request.id, f"Approved request #{rental_request.id}", request)
@@ -1041,6 +1201,7 @@ def maintenance_save_ajax(request):
 # =====================================================================
 
 @login_required(login_url='login')
+@role_required(['Admin', 'Finance Officer'])
 def payment_list(request):
     role = get_user_role(request.user)
     query = request.GET.get('q', '').strip()
@@ -1088,6 +1249,44 @@ def payment_list(request):
 @login_required(login_url='login')
 @role_required(['Admin', 'Finance Officer'])
 @require_POST
+def payment_verify_ajax(request, pk):
+    """Verify a customer-submitted payment and issue its official receipt."""
+    with transaction.atomic():
+        payment = get_object_or_404(
+            Payment.objects.select_for_update().select_related('request__applicant__user'),
+            pk=pk,
+        )
+        if payment.payment_status != 'Pending':
+            return JsonResponse({'error': 'Only pending payments can be verified.'}, status=400)
+
+        now = timezone.now()
+        payment.payment_status = 'Paid'
+        payment.payment_date = now
+        payment.reference_or_no = (
+            f"OR-{now.year}-{now.strftime('%m%d')}-{Payment.objects.count() + 1001}"
+        )
+        payment.save(update_fields=['payment_status', 'payment_date', 'reference_or_no'])
+
+    send_notification(
+        payment.request.applicant.user,
+        f'Payment Verified for Request #{payment.request_id:04d}',
+        f'Treasury verified your payment of ₱{payment.amount:,.2f}. Official receipt: {payment.reference_or_no}.',
+    )
+    log_audit(
+        request.user,
+        'PAYMENT_VERIFIED',
+        'tbl_payments',
+        payment.id,
+        f'Verified ₱{payment.amount} and issued {payment.reference_or_no}',
+        request,
+    )
+    messages.success(request, f'Payment verified. Official receipt {payment.reference_or_no} issued.')
+    return JsonResponse({'status': 'success', 'reference_or_no': payment.reference_or_no})
+
+
+@login_required(login_url='login')
+@role_required(['Admin', 'Finance Officer'])
+@require_POST
 def payment_save_ajax(request):
     request_id = request.POST.get('request_id')
     amount_str = request.POST.get('amount', '').strip()
@@ -1098,6 +1297,9 @@ def payment_save_ajax(request):
 
     if not request_id or not amount_str:
         return JsonResponse({'error': 'Rental request and payment amount are required.'}, status=400)
+
+    if method not in dict(Payment.METHOD_CHOICES):
+        return JsonResponse({'error': 'Select a valid payment method.'}, status=400)
 
     rental_request = get_object_or_404(RentalRequest, pk=request_id)
 
@@ -1140,6 +1342,13 @@ def payment_save_ajax(request):
 def payment_receipt_view(request, pk):
     """Printable official transaction receipt / Acknowledgement of Payment."""
     payment = get_object_or_404(Payment.objects.select_related('request__applicant__user', 'recorded_by'), pk=pk)
+    if payment.payment_status != 'Paid':
+        raise Http404
+    if (
+        payment.request.applicant.user_id != request.user.id
+        and get_user_role(request.user) not in {'Admin', 'Finance Officer'}
+    ):
+        raise Http404
     context = {
         'page_title': f"Receipt #{payment.reference_or_no or payment.id}",
         'payment': payment,

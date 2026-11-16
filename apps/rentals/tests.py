@@ -1,12 +1,17 @@
+from io import BytesIO
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from datetime import timedelta
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
+from PIL import Image
 
 from apps.rentals.models import (
     Applicant, Equipment, EquipmentCategory, EquipmentRate, Payment,
@@ -55,6 +60,53 @@ class RentalsWorkflowTests(TestCase):
         self.assertContains(res, 'TR-999')
         self.assertContains(res, 'Kubota Farm Tractor 4WD')
 
+    def test_equipment_photo_upload_and_display(self):
+        image_buffer = BytesIO()
+        Image.new('RGB', (2, 2), color='green').save(image_buffer, format='PNG')
+        image_buffer.seek(0)
+        with TemporaryDirectory() as media_root:
+            with override_settings(MEDIA_ROOT=media_root):
+                self.client.force_login(self.admin)
+                response = self.client.post(reverse('rentals:equipment_save_ajax'), {
+                    'equipment_code': 'TR-PHOTO',
+                    'equipment_name': 'Photo Test Tractor',
+                    'category_id': self.category.pk,
+                    'photo': SimpleUploadedFile(
+                        'tractor.png',
+                        image_buffer.getvalue(),
+                        content_type='image/png',
+                    ),
+                })
+
+                self.assertEqual(response.status_code, 200)
+                self.equipment.refresh_from_db()
+                uploaded_equipment = Equipment.objects.get(equipment_code='TR-PHOTO')
+                self.assertTrue(uploaded_equipment.photo.startswith('equipment/photos/'))
+                self.assertTrue((Path(media_root) / uploaded_equipment.photo).is_file())
+                self.assertEqual(uploaded_equipment.photo_url, f'/media/{uploaded_equipment.photo}')
+
+                catalog = self.client.get(reverse('rentals:equipment_list'))
+                self.assertContains(catalog, uploaded_equipment.photo_url)
+                application = self.client.get(reverse('rentals:apply_rental'))
+                self.assertContains(application, uploaded_equipment.photo_url)
+
+    def test_equipment_photo_upload_rejects_non_image(self):
+        self.client.force_login(self.admin)
+
+        response = self.client.post(reverse('rentals:equipment_save_ajax'), {
+            'equipment_code': 'TR-BADPHOTO',
+            'equipment_name': 'Bad Photo Test',
+            'category_id': self.category.pk,
+            'photo': SimpleUploadedFile(
+                'not-an-image.png',
+                b'not an image',
+                content_type='image/png',
+            ),
+        })
+
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(Equipment.objects.filter(equipment_code='TR-BADPHOTO').exists())
+
     def test_seed_command_does_not_create_demo_accounts_or_sample_rentals(self):
         call_command('seed_data', verbosity=0)
 
@@ -70,6 +122,33 @@ class RentalsWorkflowTests(TestCase):
         self.assertFalse(User.objects.filter(username__in=demo_usernames).exists())
         self.assertFalse(RentalRequest.objects.exists())
         self.assertFalse(Payment.objects.exists())
+
+    def test_seed_command_tolerates_duplicate_existing_equipment_rates(self):
+        category = EquipmentCategory.objects.create(
+            category_name='Road Maintenance & Compaction',
+        )
+        equipment = Equipment.objects.create(
+            equipment_code='MGR-003',
+            equipment_name='Existing Motor Road Grader',
+            category=category,
+        )
+        for _ in range(2):
+            EquipmentRate.objects.create(
+                equipment=equipment,
+                rate_amount=Decimal('7000.00'),
+                rate_unit='Day',
+            )
+
+        call_command('seed_data', verbosity=0)
+
+        self.assertEqual(
+            EquipmentRate.objects.filter(
+                equipment=equipment,
+                rate_amount=Decimal('7000.00'),
+                rate_unit='Day',
+            ).count(),
+            2,
+        )
 
     def test_rented_equipment_page_shows_approved_rentals(self):
         start = timezone.now() + timedelta(days=2)
@@ -225,12 +304,37 @@ class RentalsWorkflowTests(TestCase):
             'purpose': 'Prepare farmland',
             'project_location': 'Barangay San Isidro',
             'applicant_type': 'Farmer',
+            'payment_method': 'Maya',
         })
 
-        self.assertRedirects(response, reverse('rentals:my_requests'))
+        rental_request = RentalRequest.objects.get(applicant=self.applicant)
+        self.assertRedirects(
+            response,
+            reverse('rentals:customer_payment', args=[rental_request.pk]),
+        )
+        self.assertEqual(rental_request.preferred_payment_method, 'Maya')
+        self.assertContains(self.client.get(response.url), 'Application awaiting review')
         notification = Notification.objects.get(user=admin_user)
         self.assertIn('New Rental Application', notification.title)
         self.assertIn(self.equipment.equipment_code, notification.message)
+
+    def test_application_payment_method_is_required_to_be_valid(self):
+        start = timezone.now() + timedelta(days=2)
+        end = start + timedelta(days=1)
+        self.client.force_login(self.applicant_user)
+
+        response = self.client.post(reverse('rentals:apply_rental'), {
+            'equipment_ids': [self.equipment.pk],
+            'requested_start': start.isoformat(),
+            'requested_end': end.isoformat(),
+            'purpose': 'Prepare farmland',
+            'project_location': 'Barangay San Isidro',
+            'applicant_type': 'Farmer',
+            'payment_method': 'Unknown',
+        })
+
+        self.assertRedirects(response, reverse('rentals:apply_rental'))
+        self.assertFalse(RentalRequest.objects.exists())
 
     def test_payment_and_receipt(self):
         req = RentalRequest.objects.create(
@@ -256,6 +360,147 @@ class RentalsWorkflowTests(TestCase):
         self.assertEqual(receipt_res.status_code, 200)
         self.assertContains(receipt_res, 'OR-TEST-001')
         self.assertContains(receipt_res, '3,500.00')
+
+    def test_customer_can_submit_payment_for_pending_request(self):
+        req = RentalRequest.objects.create(
+            applicant=self.applicant,
+            purpose='Drainage excavation',
+            project_location='Poblacion',
+            requested_start=timezone.now() + timedelta(days=1),
+            requested_end=timezone.now() + timedelta(days=2),
+            status='Pending',
+            preferred_payment_method='Maya',
+        )
+        RentalRequestItem.objects.create(
+            request=req,
+            equipment=self.equipment,
+            quantity=1,
+            estimated_rate=Decimal('3500.00'),
+            subtotal=Decimal('3500.00'),
+        )
+        self.client.force_login(self.applicant_user)
+
+        page = self.client.get(reverse('rentals:customer_payment', args=[req.pk]))
+        self.assertEqual(page.status_code, 200)
+        self.assertContains(page, 'Maya')
+        self.assertContains(page, 'Application awaiting review')
+        applications_page = self.client.get(reverse('rentals:my_requests'))
+        self.assertContains(applications_page, reverse('rentals:customer_payment', args=[req.pk]))
+        response = self.client.post(reverse('rentals:customer_payment', args=[req.pk]), {
+            'amount': '2500.00',
+            'payment_method': 'Maya',
+            'transaction_reference': 'MAYA-REF-100',
+            'confirm_payment': 'on',
+        })
+
+        self.assertRedirects(response, reverse('rentals:my_requests'))
+        payment = Payment.objects.get(request=req)
+        self.assertEqual(payment.payment_status, 'Pending')
+        self.assertEqual(payment.payment_method, 'Maya')
+        self.assertEqual(payment.transaction_reference, 'MAYA-REF-100')
+        self.assertIsNone(payment.reference_or_no)
+        applications_page = self.client.get(reverse('rentals:my_requests'))
+        self.assertContains(applications_page, 'awaiting Treasury verification')
+
+    def test_customer_cannot_pay_unapproved_or_another_applicants_request(self):
+        req = RentalRequest.objects.create(
+            applicant=self.applicant,
+            purpose='Drainage excavation',
+            project_location='Poblacion',
+            requested_start=timezone.now() + timedelta(days=1),
+            requested_end=timezone.now() + timedelta(days=2),
+            status='Rejected',
+        )
+        self.client.force_login(self.applicant_user)
+
+        response = self.client.get(reverse('rentals:customer_payment', args=[req.pk]))
+        self.assertRedirects(response, reverse('rentals:my_requests'))
+
+        another_user = User.objects.create_user('another_farmer', password='pass1234')
+        another_applicant = Applicant.objects.create(
+            user=another_user,
+            applicant_type='Farmer',
+            address='Other address',
+            valid_id_type='Government ID',
+            valid_id_number='OTHER-456',
+        )
+        another_req = RentalRequest.objects.create(
+            applicant=another_applicant,
+            purpose='Other work',
+            project_location='Other location',
+            requested_start=timezone.now() + timedelta(days=1),
+            requested_end=timezone.now() + timedelta(days=2),
+            status='Approved',
+        )
+        response = self.client.get(reverse('rentals:customer_payment', args=[another_req.pk]))
+        self.assertEqual(response.status_code, 404)
+
+    def test_finance_verifies_customer_payment_and_issues_receipt(self):
+        req = RentalRequest.objects.create(
+            applicant=self.applicant,
+            purpose='Drainage excavation',
+            project_location='Poblacion',
+            requested_start=timezone.now() + timedelta(days=1),
+            requested_end=timezone.now() + timedelta(days=2),
+            status='Approved',
+        )
+        payment = Payment.objects.create(
+            request=req,
+            amount=Decimal('3500.00'),
+            payment_type='Rental Fee',
+            payment_method='Maya',
+            transaction_reference='MAYA-REF-101',
+            payment_status='Pending',
+            recorded_by=self.applicant_user,
+        )
+        self.client.force_login(self.admin)
+        payment_list = self.client.get(reverse('rentals:payment_list'))
+        self.assertContains(payment_list, 'MAYA-REF-101')
+        self.assertContains(payment_list, 'Verify')
+
+        response = self.client.post(reverse('rentals:payment_verify_ajax', args=[payment.pk]))
+
+        self.assertEqual(response.status_code, 200)
+        payment.refresh_from_db()
+        self.assertEqual(payment.payment_status, 'Paid')
+        self.assertTrue(payment.reference_or_no.startswith('OR-'))
+        self.assertEqual(payment.transaction_reference, 'MAYA-REF-101')
+
+    def test_payment_form_includes_maya_method(self):
+        self.client.force_login(self.admin)
+
+        response = self.client.get(reverse('rentals:payment_list'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '<option value="Maya">Maya</option>', html=True)
+
+    def test_payment_save_accepts_maya_and_rejects_unknown_methods(self):
+        req = RentalRequest.objects.create(
+            applicant=self.applicant,
+            purpose='Drainage excavation',
+            project_location='Poblacion',
+            requested_start=timezone.now() + timedelta(days=1),
+            requested_end=timezone.now() + timedelta(days=2),
+            status='Approved',
+        )
+        self.client.force_login(self.admin)
+        payment_data = {
+            'request_id': req.pk,
+            'amount': '3500.00',
+            'payment_type': 'Rental Fee',
+            'payment_method': 'Maya',
+        }
+
+        response = self.client.post(reverse('rentals:payment_save_ajax'), payment_data)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Payment.objects.get(pk=response.json()['id']).payment_method, 'Maya')
+
+        payment_data['payment_method'] = 'Unknown'
+        response = self.client.post(reverse('rentals:payment_save_ajax'), payment_data)
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(Payment.objects.count(), 1)
 
     def test_excel_export_generation(self):
         self.client.force_login(self.admin)
