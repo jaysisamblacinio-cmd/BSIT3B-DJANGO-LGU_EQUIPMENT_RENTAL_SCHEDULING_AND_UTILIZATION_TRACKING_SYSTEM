@@ -114,7 +114,7 @@
 
             <div class="d-flex gap-1">
               {% if is_applicant or is_admin or is_officer %}
-              {% if eq.availability_status == 'Available' %}
+              {% if eq.availability_status == 'Available' and eq.condition_status != 'Needs Repair' %}
               <a href="{% url 'rentals:apply_rental' %}?equipment_id={{ eq.id }}" class="btn btn-sm btn-warning text-dark fw-bold" title="Request this Machinery">
                 <i class="fas fa-file-signature me-1"></i> Rent
               </a>

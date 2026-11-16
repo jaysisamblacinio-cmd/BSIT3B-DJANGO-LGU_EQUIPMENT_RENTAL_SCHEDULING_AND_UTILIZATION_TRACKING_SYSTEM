@@ -70,6 +70,24 @@ def send_notification(user, title, message):
         )
 
 
+def ensure_repair_record(equipment, problem_reported, description):
+    """Keep equipment needing repair unavailable and visible in maintenance records."""
+    active_record = equipment.maintenance_records.filter(
+        status__in=['Scheduled', 'In Progress'],
+    ).first()
+    if active_record:
+        return active_record
+
+    return MaintenanceRecord.objects.create(
+        equipment=equipment,
+        maintenance_type='Corrective',
+        problem_reported=problem_reported,
+        description=description,
+        scheduled_date=timezone.now().date(),
+        status='In Progress',
+    )
+
+
 # =====================================================================
 # DASHBOARD
 # =====================================================================
@@ -283,6 +301,13 @@ def equipment_save_ajax(request):
     else:
         equipment = Equipment()
 
+    has_active_maintenance = (
+        equipment.maintenance_records.filter(status__in=['Scheduled', 'In Progress']).exists()
+        if is_update else False
+    )
+    if condition == 'Needs Repair' or has_active_maintenance:
+        availability = 'Under Maintenance'
+
     equipment.equipment_code = code
     equipment.equipment_name = name
     equipment.category = category
@@ -294,6 +319,13 @@ def equipment_save_ajax(request):
     equipment.availability_status = availability
     equipment.current_location = location
     equipment.save()
+
+    if condition == 'Needs Repair':
+        ensure_repair_record(
+            equipment,
+            'Equipment marked as needing repair.',
+            'Equipment requires repair; service details to be recorded.',
+        )
 
     if photo_file:
         extension = {'JPEG': 'jpg', 'PNG': 'png', 'WEBP': 'webp'}[photo_format]
@@ -1010,6 +1042,12 @@ def equipment_return_ajax(request, pk):
             assignment.equipment.availability_status = 'Available'
         assignment.equipment.condition_status = equipment_condition
         assignment.equipment.save()
+        if equipment_condition == 'Needs Repair':
+            ensure_repair_record(
+                assignment.equipment,
+                condition_after or remarks or 'Equipment returned needing repair.',
+                work_description or condition_after or 'Equipment returned and requires repair.',
+            )
 
         assignment.reservation.status = 'Completed'
         assignment.reservation.save()
@@ -1170,26 +1208,33 @@ def maintenance_save_ajax(request):
     else:
         rec = MaintenanceRecord()
 
-    rec.equipment = equipment
-    rec.maintenance_type = m_type
-    rec.problem_reported = problem
-    rec.description = desc
-    rec.technician_name = technician
-    rec.cost = cost
-    rec.scheduled_date = sched_date
-    rec.status = status
+    with transaction.atomic():
+        rec.equipment = equipment
+        rec.maintenance_type = m_type
+        rec.problem_reported = problem
+        rec.description = desc
+        rec.technician_name = technician
+        rec.cost = cost
+        rec.scheduled_date = sched_date
+        rec.status = status
+        rec.completed_date = timezone.now().date() if status == 'Completed' else None
+        rec.save()
 
-    if status == 'Completed' and not rec.completed_date:
-        rec.completed_date = timezone.now().date()
-        # Restore equipment status to Available if it was in maintenance
-        equipment.availability_status = 'Available'
-        equipment.condition_status = 'Good'
-        equipment.save()
-    elif status in ['Scheduled', 'In Progress']:
-        equipment.availability_status = 'Under Maintenance'
-        equipment.save()
-
-    rec.save()
+        if status == 'Completed':
+            equipment.condition_status = 'Good'
+            has_other_active_maintenance = equipment.maintenance_records.filter(
+                status__in=['Scheduled', 'In Progress'],
+            ).exclude(pk=rec.pk).exists()
+            equipment.availability_status = (
+                'Under Maintenance' if has_other_active_maintenance else 'Available'
+            )
+            equipment.save(update_fields=['condition_status', 'availability_status'])
+        elif status in ['Scheduled', 'In Progress']:
+            equipment.availability_status = 'Under Maintenance'
+            equipment.save(update_fields=['availability_status'])
+        elif equipment.condition_status == 'Needs Repair':
+            equipment.availability_status = 'Under Maintenance'
+            equipment.save(update_fields=['availability_status'])
 
     log_audit(request.user, 'MAINTENANCE_UPDATE' if is_update else 'MAINTENANCE_SCHEDULE', 'tbl_maintenance_records', rec.id, f"{m_type} for {equipment.equipment_code}", request)
     messages.success(request, f'Maintenance record for {equipment.equipment_code} has been saved.')

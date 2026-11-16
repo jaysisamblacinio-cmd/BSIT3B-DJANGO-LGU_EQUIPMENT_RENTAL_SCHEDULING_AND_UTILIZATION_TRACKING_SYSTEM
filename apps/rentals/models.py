@@ -143,6 +143,9 @@ class Equipment(models.Model):
 
     def is_available_for_dates(self, start_dt, end_dt, exclude_reservation_id=None):
         """Check whether this equipment has overlapping active reservations or maintenance."""
+        if self.condition_status == 'Needs Repair':
+            return False, "Equipment needs repair and is currently unavailable for rental."
+
         if self.availability_status in ['Under Maintenance', 'Out of Service']:
             return False, f"Equipment is currently {self.availability_status}."
 

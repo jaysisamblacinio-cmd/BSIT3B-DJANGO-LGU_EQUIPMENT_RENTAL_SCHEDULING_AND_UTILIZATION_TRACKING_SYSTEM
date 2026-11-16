@@ -14,8 +14,8 @@ from django.utils import timezone
 from PIL import Image
 
 from apps.rentals.models import (
-    Applicant, Equipment, EquipmentCategory, EquipmentRate, Payment,
-    Notification, RentalRequest, RentalRequestItem, Reservation
+    Applicant, Equipment, EquipmentAssignment, EquipmentCategory, EquipmentRate, Payment,
+    MaintenanceRecord, Notification, RentalRequest, RentalRequestItem, Reservation
 )
 
 User = get_user_model()
@@ -284,6 +284,131 @@ class RentalsWorkflowTests(TestCase):
         # 4. Equipment now has reservation - overlapping dates must trigger conflict!
         is_avail_conflict, _ = self.equipment.is_available_for_dates(start + timedelta(hours=4), end - timedelta(hours=4))
         self.assertFalse(is_avail_conflict)
+
+    def test_equipment_needing_repair_is_unavailable_and_listed_for_maintenance(self):
+        self.client.force_login(self.admin)
+        response = self.client.post(reverse('rentals:equipment_save_ajax'), {
+            'id': self.equipment.pk,
+            'equipment_code': self.equipment.equipment_code,
+            'equipment_name': self.equipment.equipment_name,
+            'category_id': self.category.pk,
+            'condition_status': 'Needs Repair',
+            'availability_status': 'Available',
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.equipment.refresh_from_db()
+        self.assertEqual(self.equipment.availability_status, 'Under Maintenance')
+        repair_record = MaintenanceRecord.objects.get(equipment=self.equipment)
+        self.assertEqual(repair_record.status, 'In Progress')
+
+        start = timezone.now() + timedelta(days=2)
+        available, reason = self.equipment.is_available_for_dates(start, start + timedelta(days=1))
+        self.assertFalse(available)
+        self.assertIn('needs repair', reason)
+
+        start = timezone.now() + timedelta(days=2)
+        application_response = self.client.post(reverse('rentals:apply_rental'), {
+            'equipment_ids': [self.equipment.pk],
+            'requested_start': start.isoformat(),
+            'requested_end': (start + timedelta(days=1)).isoformat(),
+            'purpose': 'Prepare farmland',
+            'project_location': 'Barangay San Isidro',
+            'payment_method': 'Cash',
+        })
+        self.assertRedirects(application_response, reverse('rentals:apply_rental'))
+        self.assertFalse(RentalRequest.objects.exists())
+
+        maintenance_page = self.client.get(reverse('rentals:maintenance_list'))
+        self.assertContains(maintenance_page, self.equipment.equipment_code)
+        application_page = self.client.get(reverse('rentals:apply_rental'))
+        self.assertNotContains(application_page, self.equipment.equipment_code)
+
+    def test_returning_equipment_needing_repair_creates_maintenance_record(self):
+        start = timezone.now() - timedelta(days=1)
+        rental_request = RentalRequest.objects.create(
+            applicant=self.applicant,
+            purpose='Road repair',
+            project_location='North District',
+            requested_start=start,
+            requested_end=timezone.now() + timedelta(days=1),
+            status='Released',
+        )
+        reservation = Reservation.objects.create(
+            request=rental_request,
+            equipment=self.equipment,
+            scheduled_start=start,
+            scheduled_end=timezone.now() + timedelta(days=1),
+            status='In Progress',
+            approved_by=self.admin,
+        )
+        assignment = EquipmentAssignment.objects.create(
+            reservation=reservation,
+            equipment=self.equipment,
+            status='Released',
+        )
+
+        self.client.force_login(self.admin)
+        response = self.client.post(
+            reverse('rentals:equipment_return_ajax', args=[assignment.pk]),
+            {
+                'equipment_condition': 'Needs Repair',
+                'condition_after': 'Hydraulic hose leaking.',
+                'work_description': 'Inspect and replace the damaged hose.',
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.equipment.refresh_from_db()
+        self.assertEqual(self.equipment.availability_status, 'Under Maintenance')
+        repair_record = MaintenanceRecord.objects.get(equipment=self.equipment)
+        self.assertEqual(repair_record.status, 'In Progress')
+        self.assertEqual(repair_record.problem_reported, 'Hydraulic hose leaking.')
+
+    def test_equipment_is_available_only_after_maintenance_is_completed(self):
+        self.client.force_login(self.admin)
+        self.client.post(reverse('rentals:equipment_save_ajax'), {
+            'id': self.equipment.pk,
+            'equipment_code': self.equipment.equipment_code,
+            'equipment_name': self.equipment.equipment_name,
+            'category_id': self.category.pk,
+            'condition_status': 'Needs Repair',
+            'availability_status': 'Under Maintenance',
+        })
+        repair_record = MaintenanceRecord.objects.get(equipment=self.equipment)
+
+        self.client.post(reverse('rentals:equipment_save_ajax'), {
+            'id': self.equipment.pk,
+            'equipment_code': self.equipment.equipment_code,
+            'equipment_name': self.equipment.equipment_name,
+            'category_id': self.category.pk,
+            'condition_status': 'Good',
+            'availability_status': 'Available',
+        })
+        self.equipment.refresh_from_db()
+        self.assertEqual(self.equipment.availability_status, 'Under Maintenance')
+
+        response = self.client.post(reverse('rentals:maintenance_save_ajax'), {
+            'id': repair_record.pk,
+            'equipment_id': self.equipment.pk,
+            'maintenance_type': 'Corrective',
+            'problem_reported': repair_record.problem_reported,
+            'description': 'Replaced damaged hydraulic hose.',
+            'technician_name': 'Motorpool Technician',
+            'cost': '250.00',
+            'scheduled_date': timezone.now().date().isoformat(),
+            'status': 'Completed',
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.equipment.refresh_from_db()
+        repair_record.refresh_from_db()
+        self.assertEqual(repair_record.status, 'Completed')
+        self.assertIsNotNone(repair_record.completed_date)
+        self.assertEqual(self.equipment.condition_status, 'Good')
+        self.assertEqual(self.equipment.availability_status, 'Available')
+        start = timezone.now() + timedelta(days=2)
+        self.assertTrue(self.equipment.is_available_for_dates(start, start + timedelta(days=1))[0])
 
     def test_application_notifies_admin_group_member(self):
         admin_group = Group.objects.create(name='Admin')
